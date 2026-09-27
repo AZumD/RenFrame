@@ -1,0 +1,1 @@
+[2026-09-27] Baclaude scaffolded RenFrame inspection MVP: CLI, detector, ELF scanner, reports, tests. See /renframe/ and /tests/
