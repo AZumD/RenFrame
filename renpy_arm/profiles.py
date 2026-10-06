@@ -300,7 +300,7 @@ def _modernize_katawa_hd_source(text: str) -> str:
     # Python 2 exposed the old sets module. Python 3's built-in set type is
     # the direct replacement, and the known-good Ren'Py 8 port makes the same
     # migration in ui_ingamemenu.rpy.
-    text = re.sub(r"(?m)^([ \\t]*)import sets[ \\t]*\\n", "", text)
+    text = re.sub(r"(?m)^([ \t]*)import sets[ \t]*\n", "", text)
     text = text.replace("sets.Set()", "set()")
 
     # Ren'Py 8's Render constructor no longer accepts the legacy opaque=
