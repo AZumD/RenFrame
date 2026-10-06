@@ -14,6 +14,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
+from .profiles import (
+    ProfileError,
+    detect_legacy_version,
+    detect_profile,
+    is_legacy_renpy_game,
+    migrate_profile,
+)
+
 LogFn = Callable[[str], None]
 
 HELPER_SH = {
@@ -23,7 +31,7 @@ HELPER_SH = {
     "make-rpgmaker-arm.sh",
 }
 
-VER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:\.\d+)?$")
+VER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:\.\d+)?")
 
 
 @dataclass
@@ -45,7 +53,7 @@ def _log(log: Optional[LogFn], msg: str) -> None:
 
 
 def normalize_version(s: str) -> Optional[str]:
-    m = VER_RE.match(s.strip().strip("'\""))
+    m = VER_RE.search(s.strip().strip("'\""))
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
     return None
@@ -141,6 +149,7 @@ def detect_version(game_dir: Path, override: Optional[str] = None) -> str:
     for path in (
         game_dir / "renpy" / "vc_version.py",
         game_dir / "renpy" / "versions.py",
+        game_dir / "renpy" / "__init__.py",
     ):
         if path.is_file():
             n = _from_py_source(path)
@@ -167,8 +176,47 @@ def detect_version(game_dir: Path, override: Optional[str] = None) -> str:
     )
 
 
-def is_renpy_game(game_dir: Path) -> bool:
+def is_modern_renpy_game(game_dir: Path) -> bool:
     return (game_dir / "renpy").is_dir() and (game_dir / "lib").is_dir()
+
+
+def is_renpy_game(game_dir: Path) -> bool:
+    """Recognize both modern distributions and supported legacy layouts."""
+    return is_modern_renpy_game(game_dir) or is_legacy_renpy_game(game_dir)
+
+
+def _safe_extract_zip(zf: zipfile.ZipFile, destination: Path) -> None:
+    destination = destination.resolve()
+    for member in zf.infolist():
+        target = (destination / member.filename).resolve()
+        try:
+            target.relative_to(destination)
+        except ValueError as exc:
+            raise ConvertError(f"Unsafe path in zip archive: {member.filename}") from exc
+    zf.extractall(destination)
+
+
+def _safe_extract_tar(tf: tarfile.TarFile, destination: Path) -> None:
+    destination = destination.resolve()
+    for member in tf.getmembers():
+        target = (destination / member.name).resolve()
+        try:
+            target.relative_to(destination)
+        except ValueError as exc:
+            raise ConvertError(f"Unsafe path in tar archive: {member.name}") from exc
+    tf.extractall(destination)
+
+
+def default_cache_dir() -> Path:
+    """Return a persistent per-user cache for SDKs and compatibility assets."""
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA")
+        if base:
+            return Path(base) / "RenFrame" / "cache"
+    xdg = os.environ.get("XDG_CACHE_HOME")
+    if xdg:
+        return Path(xdg) / "renframe"
+    return Path.home() / ".cache" / "renframe"
 
 
 def resolve_input(path: Path, work_root: Path, log: Optional[LogFn] = None) -> Path:
@@ -181,7 +229,7 @@ def resolve_input(path: Path, work_root: Path, log: Optional[LogFn] = None) -> P
         kids = [p for p in path.iterdir() if p.is_dir() and not p.name.startswith(".")]
         if len(kids) == 1 and is_renpy_game(kids[0]):
             return kids[0]
-        raise ConvertError(f"Not a Ren'Py game folder (need renpy/ + lib/): {path}")
+        raise ConvertError(f"Not a recognizable Ren'Py game folder: {path}")
 
     if not path.is_file():
         raise ConvertError(f"Path not found: {path}")
@@ -195,10 +243,10 @@ def resolve_input(path: Path, work_root: Path, log: Optional[LogFn] = None) -> P
     _log(log, f"Extracting archive {path.name}…")
     if suffix == ".zip":
         with zipfile.ZipFile(path, "r") as zf:
-            zf.extractall(extract_dir)
+            _safe_extract_zip(zf, extract_dir)
     elif suffix in {".gz", ".bz2", ".xz"} or path.name.endswith((".tar.gz", ".tar.bz2", ".tgz")):
         with tarfile.open(path, "r:*") as tf:
-            tf.extractall(extract_dir)
+            _safe_extract_tar(tf, extract_dir)
     elif suffix == ".7z":
         raise ConvertError("`.7z` input is not supported yet — use .zip or a folder.")
     else:
@@ -211,7 +259,7 @@ def resolve_input(path: Path, work_root: Path, log: Optional[LogFn] = None) -> P
     for kid in kids:
         if is_renpy_game(kid):
             return kid
-    raise ConvertError("Archive did not contain a Ren'Py game (renpy/ + lib/).")
+    raise ConvertError("Archive did not contain a recognizable Ren'Py game.")
 
 
 def download_sdk(version: str, cache_dir: Path, force: bool, log: Optional[LogFn] = None) -> Path:
@@ -646,11 +694,36 @@ def convert_game(
 
     work = work_dir or Path(tempfile.mkdtemp(prefix="renpy-arm-work-"))
     work.mkdir(parents=True, exist_ok=True)
-    cache = cache_dir or (work / ".renpy-arm-cache")
+    cache = cache_dir or default_cache_dir()
+    cache.mkdir(parents=True, exist_ok=True)
 
     game_dir = resolve_input(source, work, log=emit)
-    if not is_renpy_game(game_dir):
-        raise ConvertError("Not a Ren'Py game.")
+
+    profile_match = detect_profile(game_dir)
+    if profile_match is not None:
+        try:
+            game_dir = migrate_profile(
+                profile_match,
+                game_dir,
+                work_root=work,
+                cache_dir=cache,
+                force=force,
+                log=emit,
+            )
+        except ProfileError as exc:
+            raise ConvertError(str(exc)) from exc
+
+    if not is_modern_renpy_game(game_dir):
+        legacy_version = detect_legacy_version(game_dir)
+        if legacy_version:
+            raise ConvertError(
+                f"Legacy Ren'Py {legacy_version} detected, but RenFrame has no "
+                "compatibility profile for this game yet."
+            )
+        raise ConvertError(
+            "Ren'Py game detected, but this distribution does not contain the "
+            "modern lib/ runtime layout and no compatibility profile matched."
+        )
 
     launcher = find_launcher_sh(game_dir)
     game_name = launcher.stem
