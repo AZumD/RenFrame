@@ -186,6 +186,32 @@ def is_renpy_game(game_dir: Path) -> bool:
     return is_modern_renpy_game(game_dir) or is_legacy_renpy_game(game_dir)
 
 
+def resolve_conversion_version(
+    game_dir: Path,
+    version_override: Optional[str] = None,
+    profile_match=None,
+) -> str:
+    """Resolve the runtime version for the final normalized game tree.
+
+    An explicit user override wins. A compatibility profile's pinned target
+    version is authoritative for the tree produced by that profile, even when
+    the packaged reference build omits source-form engine version metadata.
+    """
+    if version_override:
+        return detect_version(game_dir, version_override)
+
+    if profile_match is not None:
+        target = normalize_version(profile_match.profile.target_version)
+        if not target:
+            raise ConvertError(
+                f"Compatibility profile {profile_match.profile.id} has an invalid "
+                f"target Ren'Py version: {profile_match.profile.target_version}"
+            )
+        return target
+
+    return detect_version(game_dir)
+
+
 def _safe_extract_zip(zf: zipfile.ZipFile, destination: Path) -> None:
     destination = destination.resolve()
     for member in zf.infolist():
@@ -821,7 +847,13 @@ def convert_game(
     launcher = find_launcher_sh(game_dir)
     game_name = launcher.stem
     python_tag = detect_python_tag(game_dir)
-    version = detect_version(game_dir, version_override)
+    version = resolve_conversion_version(
+        game_dir,
+        version_override=version_override,
+        profile_match=profile_match,
+    )
+    if profile_match is not None and not version_override:
+        emit(f"Compatibility profile pins Ren'Py {version}")
     emit(f"Game: {game_name}")
     emit(f"Ren'Py {version} ({python_tag})")
 
