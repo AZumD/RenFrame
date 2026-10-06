@@ -42,3 +42,19 @@ def test_launcher_crlf_is_normalized_even_if_arm_mapping_exists(tmp_path: Path) 
     data = launcher.read_bytes()
     assert b"\r" not in data
     assert data.startswith(b"#!/bin/sh\n")
+
+
+def test_steam_wrapper_discovers_frametop_x11_environment(tmp_path: Path) -> None:
+    launcher = tmp_path / "Sample Game.sh"
+    launcher.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+
+    write_steam_helpers(tmp_path, "Sample Game", "8.5.3", launcher)
+
+    wrapper = (tmp_path / "launch-steam.sh").read_text(encoding="utf-8")
+    assert 'FRAME_RUNTIME_DIR="/run/user/$(id -u)/frametop"' in wrapper
+    assert 'export XDG_RUNTIME_DIR="$FRAME_RUNTIME_DIR"' in wrapper
+    assert 'export DISPLAY=":2"' in wrapper
+    assert 'export SDL_VIDEODRIVER="x11"' in wrapper
+    assert '"$FRAME_RUNTIME_DIR"/xauth_*' in wrapper
+    assert 'export XAUTHORITY="$XAUTH_FILE"' in wrapper
+    assert 'exec "$GAME_DIR/Sample Game.sh" "$@"' in wrapper
