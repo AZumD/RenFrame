@@ -45,6 +45,10 @@ $buildRoots = @(
   (Join-Path $distPath "windows\RenFrame")
 )
 
+# First use Windows' native process killer by image name. This catches packaged
+# RenFrame instances even when WMI/CIM does not expose ExecutablePath.
+& taskkill.exe /IM RenFrame.exe /T /F 2>$null | Out-Null
+
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | ForEach-Object {
   $exe = $_.ExecutablePath
   if (-not $exe) { return }
@@ -56,7 +60,15 @@ Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | ForEach-Object {
     }
   }
 }
-Start-Sleep -Milliseconds 300
+Start-Sleep -Milliseconds 500
+
+# If something still owns the bundled Tk DND module, print the owner before
+# cleanup so a locked build is diagnosable instead of just reporting a DLL.
+$lockReport = & tasklist.exe /M libtkdnd2.10.2.dll /FO CSV /NH 2>$null
+if ($LASTEXITCODE -eq 0 -and $lockReport) {
+  Write-Warning "A process still has RenFrame's Tk DND module loaded:"
+  $lockReport | ForEach-Object { Write-Warning "  $_" }
+}
 
 if (Test-Path $workPath) { Remove-Item -Recurse -Force $workPath }
 if (Test-Path (Join-Path $distPath "RenFrame")) {
