@@ -302,6 +302,13 @@ def _modernize_katawa_hd_source(text: str) -> str:
     # migration in ui_ingamemenu.rpy.
     text = re.sub(r"(?m)^([ \\t]*)import sets[ \\t]*\\n", "", text)
     text = text.replace("sets.Set()", "set()")
+
+    # Ren'Py 8's Render constructor no longer accepts the legacy opaque=
+    # keyword. The known-good Ren'Py 8 Katawa port drops it as well.
+    text = text.replace(
+        "renpy.display.render.Render(width, height, opaque=True)",
+        "renpy.display.render.Render(width, height)",
+    )
     return text
 
 
