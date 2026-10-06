@@ -14,6 +14,7 @@ from renpy_arm.profiles import (
     KATAWA_PROFILE,
     detect_legacy_version,
     detect_profile,
+    _modernize_katawa_hd_source,
 )
 
 
@@ -103,3 +104,19 @@ def test_unknown_legacy_game_gets_specific_error(tmp_path: Path) -> None:
 
     with pytest.raises(ConvertError, match="Legacy Ren'Py 6.10.2e detected"):
         convert_game(root, work_dir=tmp_path / "work")
+
+
+def test_katawa_hd_source_python2_syntax_is_modernized() -> None:
+    source = (
+        'print "JESUS CHRIST IT\'S A LION, DISABLE FULLSCREEN"\n'
+        'try:\n'
+        '    pass\n'
+        'except Exception, e:\n'
+        '    raise\n'
+    )
+
+    modern = _modernize_katawa_hd_source(source)
+
+    assert 'print("JESUS CHRIST IT\'S A LION, DISABLE FULLSCREEN")' in modern
+    assert "except Exception as e:" in modern
+    assert "except Exception, e:" not in modern
