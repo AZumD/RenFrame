@@ -8,6 +8,7 @@ from renpy_arm.convert import (
     detect_version,
     is_renpy_game,
     normalize_version,
+    resolve_conversion_version,
 )
 from renpy_arm.profiles import (
     KATAWA_PROFILE,
@@ -81,6 +82,19 @@ def test_katawa_hd_profile_can_use_png_dimensions(tmp_path: Path) -> None:
     match = detect_profile(root)
     assert match is not None
     assert match.variant == "hd"
+
+
+def test_profile_target_version_is_authoritative_after_migration(tmp_path: Path) -> None:
+    legacy = _katawa_root(tmp_path)
+    match = detect_profile(legacy)
+    assert match is not None
+
+    # Simulate a normalized packaged distribution that lacks source-form
+    # version metadata. The profile already knows exactly what it produced.
+    normalized = tmp_path / "normalized"
+    normalized.mkdir()
+
+    assert resolve_conversion_version(normalized, profile_match=match) == "8.0.3"
 
 
 def test_unknown_legacy_game_gets_specific_error(tmp_path: Path) -> None:
