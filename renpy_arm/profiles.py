@@ -177,6 +177,28 @@ def _katawa_variant(game_dir: Path) -> str:
     dims = _png_dimensions(game_dir / "game" / "presplash.png")
     if dims and (dims[0] >= 1200 or dims[1] >= 900):
         return "hd"
+
+    # The HD project does not consistently ship a presplash, and users often
+    # rename the extracted folder. Detect the actual HD source/layout instead
+    # of relying on packaging names.
+    ui_settings = game_dir / "game" / "ui_settings.rpy"
+    if ui_settings.is_file():
+        try:
+            text = ui_settings.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        hd_markers = (
+            "style.default.size = 41",
+            "LiveComposite((1440, 1080)",
+            "ui.vbox(xpos = 324, ypos = 216)",
+        )
+        if any(marker in text for marker in hd_markers):
+            return "hd"
+
+    say_dims = _png_dimensions(game_dir / "game" / "ui" / "bg-say.png")
+    if say_dims and say_dims[0] >= 1200:
+        return "hd"
+
     return "vanilla"
 
 
@@ -300,14 +322,23 @@ def _overlay_user_katawa_archives(
     Loose modernized .rpy/.rpyc files still take precedence over archive
     contents, so script fixes remain authoritative.
     """
-    source_payload = source_game / "game"
     target_payload = modern_game / "game"
     target_payload.mkdir(parents=True, exist_ok=True)
 
+    # Normal Ren'Py distributions keep archives under game/, but some legacy
+    # repacks place them beside the launcher. Accept both layouts.
+    archive_sources = {}
+    for payload in (source_game / "game", source_game):
+        if not payload.is_dir():
+            continue
+        for src in payload.glob("*.rpa"):
+            archive_sources.setdefault(src.name, src)
+
     copied = 0
-    for src in sorted(source_payload.glob("*.rpa")):
+    for src in sorted(archive_sources.values(), key=lambda p: p.name.lower()):
         try:
-            header = src.read_bytes()[:8]
+            with src.open("rb") as fh:
+                header = fh.read(8)
         except OSError:
             continue
         if not header.startswith(b"RPA-"):
