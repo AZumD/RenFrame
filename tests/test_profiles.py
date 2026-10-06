@@ -115,6 +115,7 @@ def test_katawa_hd_source_python2_syntax_is_modernized() -> None:
         '    raise\n'
         '    import sets\n'
         '    chosen = sets.Set()\n'
+        '    return renpy.display.render.Render(width, height, opaque=True)\n'
     )
 
     modern = _modernize_katawa_hd_source(source)
@@ -125,3 +126,5 @@ def test_katawa_hd_source_python2_syntax_is_modernized() -> None:
     assert "import sets" not in modern
     assert "sets.Set()" not in modern
     assert "chosen = set()" in modern
+    assert "Render(width, height, opaque=True)" not in modern
+    assert "Render(width, height)" in modern
