@@ -92,9 +92,9 @@ def detect_python_tag(game_dir: Path) -> str:
 
 def _from_py_source(path: Path) -> Optional[str]:
     text = path.read_text(encoding="utf-8", errors="replace")
-    m = re.search(r"""(?m)^version\s*=\s*['\"]([^'\"]+)['\"]""", text)
+    m = re.search(r"""(?m)^version\s*=\s*(['\"])(.*?)\1""", text)
     if m:
-        n = normalize_version(m.group(1))
+        n = normalize_version(m.group(2))
         if n:
             return n
     m = re.search(
@@ -171,7 +171,7 @@ def detect_version(game_dir: Path, override: Optional[str] = None) -> str:
                 return n
 
     raise ConvertError(
-        "Could not detect Ren'Py version from renpy/vc_version.py or .pyc. "
+        "Could not detect Ren'Py version from the bundled engine metadata. "
         "Set the version manually."
     )
 
