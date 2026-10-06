@@ -13,10 +13,24 @@ if (-not (Test-Path $py)) {
   $py = "python"
 }
 
+$workPath = ".pyinstaller-work"
+if (Test-Path $workPath) {
+  Remove-Item -Recurse -Force $workPath
+}
+if (Test-Path "dist\RenFrame") {
+  Remove-Item -Recurse -Force "dist\RenFrame"
+}
+if (Test-Path "dist\windows\RenFrame") {
+  Remove-Item -Recurse -Force "dist\windows\RenFrame"
+}
+
 & $py -m PyInstaller `
   --noconfirm `
   --clean `
   --windowed `
+  --workpath $workPath `
+  --specpath $workPath `
+  --distpath "dist" `
   --name "RenFrame" `
   --paths "." `
   --add-data "app\assets;app\assets" `
@@ -52,5 +66,11 @@ $zip = "dist\RenFrame-windows-x64.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path $release -DestinationPath $zip -CompressionLevel Optimal
 
-Write-Host "Built: $release\RenFrame.exe"
-Write-Host "Zip:   $zip"
+Write-Host ""
+Write-Host "Built app (run this one):"
+Write-Host "  $release\RenFrame.exe"
+Write-Host ""
+Write-Host "Release zip:"
+Write-Host "  $zip"
+Write-Host ""
+Write-Host "NOTE: .pyinstaller-work is temporary build scaffolding. Do not run executables from it."
