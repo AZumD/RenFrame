@@ -14,6 +14,7 @@ from renpy_arm.profiles import (
     KATAWA_PROFILE,
     detect_legacy_version,
     detect_profile,
+    _katawa_variant,
     _modernize_katawa_hd_source,
     _overlay_user_katawa_archives,
 )
@@ -184,3 +185,32 @@ def test_katawa_hd_context_and_script_compatibility_are_modernized() -> None:
     assert "config.script_version = (6,10,2)" in modern
     assert ".iteritems()" not in modern
     assert ".items()" in modern
+
+
+def test_katawa_hd_variant_detects_source_layout_without_hd_folder_name(tmp_path: Path) -> None:
+    game = tmp_path / "KatawaShoujo"
+    payload = game / "game"
+    payload.mkdir(parents=True)
+    (payload / "ui_settings.rpy").write_text(
+        "init -1 python:\n"
+        "    style.default.size = 41\n"
+        "    x = LiveComposite((1440, 1080), (0, 0), \"foo\")\n",
+        encoding="utf-8",
+    )
+
+    assert _katawa_variant(game) == "hd"
+
+
+def test_katawa_hd_archives_can_live_beside_launcher(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    modern = tmp_path / "modern"
+    (source / "game").mkdir(parents=True)
+    (modern / "game").mkdir(parents=True)
+
+    root_archive = source / "img_ui.rpa"
+    root_archive.write_bytes(b"RPA-2.0 " + b"fixture")
+
+    copied = _overlay_user_katawa_archives(source, modern, log=None)
+
+    assert copied == 1
+    assert (modern / "game" / "zz-renframe-hd-img_ui.rpa").read_bytes() == root_archive.read_bytes()
