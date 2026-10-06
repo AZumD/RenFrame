@@ -533,6 +533,31 @@ set -euo pipefail
 GAME_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "$GAME_DIR"
 
+# Steam Frame's nested desktop/Xwayland session lives under frametop. Steam
+# shortcuts do not reliably inherit the variables needed to reach it, so
+# discover the live session at launch time. The xauth filename changes between
+# sessions and must never be hardcoded.
+FRAME_RUNTIME_DIR="/run/user/$(id -u)/frametop"
+if [[ -d "$FRAME_RUNTIME_DIR" ]]; then
+    export XDG_RUNTIME_DIR="$FRAME_RUNTIME_DIR"
+    export DISPLAY=":2"
+    export SDL_VIDEODRIVER="x11"
+
+    XAUTH_FILE=""
+    for candidate in "$FRAME_RUNTIME_DIR"/xauth_*; do
+        [[ -r "$candidate" ]] || continue
+        if [[ -z "$XAUTH_FILE" || "$candidate" -nt "$XAUTH_FILE" ]]; then
+            XAUTH_FILE="$candidate"
+        fi
+    done
+    if [[ -n "$XAUTH_FILE" ]]; then
+        export XAUTHORITY="$XAUTH_FILE"
+    else
+        printf 'WARNING: no readable xauth_* file found in %s; X11 launch may fail.\n' \
+            "$FRAME_RUNTIME_DIR" >&2
+    fi
+fi
+
 # Windows-created ZIPs may lose Unix executable bits on the ARM runtime.
 for runtime in \
     "$GAME_DIR"/lib/*-linux-aarch64/renpy \
