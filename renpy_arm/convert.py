@@ -202,6 +202,13 @@ def _safe_extract_tar(tf: tarfile.TarFile, destination: Path) -> None:
         target = (destination / member.name).resolve()
         try:
             target.relative_to(destination)
+
+            if member.issym():
+                link_target = (target.parent / member.linkname).resolve()
+                link_target.relative_to(destination)
+            elif member.islnk():
+                link_target = (destination / member.linkname).resolve()
+                link_target.relative_to(destination)
         except ValueError as exc:
             raise ConvertError(f"Unsafe path in tar archive: {member.name}") from exc
     tf.extractall(destination)
