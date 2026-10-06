@@ -426,7 +426,6 @@ class ConverterApp:
                 result = convert_game(
                     convert_src,
                     output_zip=out_zip,
-                    cache_dir=work / ".renpy-arm-cache",
                     work_dir=work,
                     log=self._append_log,
                 )
