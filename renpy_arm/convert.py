@@ -8,6 +8,7 @@ import re
 import shutil
 import tarfile
 import tempfile
+import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import dataclass, field
@@ -318,25 +319,94 @@ def resolve_input(path: Path, work_root: Path, log: Optional[LogFn] = None) -> P
     raise ConvertError("Archive did not contain a recognizable Ren'Py game.")
 
 
-def download_sdk(version: str, cache_dir: Path, force: bool, log: Optional[LogFn] = None) -> Path:
+def download_sdk(
+    version: str,
+    cache_dir: Path,
+    force: bool,
+    log: Optional[LogFn] = None,
+) -> tuple[Path, str]:
+    """Download an ARM SDK, with a conservative same-series fallback.
+
+    Some commercial games are built with Ren'Py nightlies whose semantic patch
+    version was never published as a final SDK. For example, an 8.4.2 nightly
+    exists in the wild even though the final 8.4 series stops at 8.4.1.
+    If the exact sdkarm URL returns HTTP 404, try earlier patch releases in the
+    same major.minor series. Never cross a minor-version boundary silently.
+    """
     cache_dir.mkdir(parents=True, exist_ok=True)
-    name = f"renpy-{version}-sdkarm.tar.bz2"
-    url = f"https://www.renpy.org/dl/{version}/{name}"
-    dest = cache_dir / name
-    if dest.is_file() and not force:
-        _log(log, f"Using cached SDK: {dest.name}")
-        return dest
-    _log(log, f"Downloading {url}")
-    partial = dest.with_suffix(dest.suffix + ".partial")
-    try:
-        urllib.request.urlretrieve(url, partial)
-    except Exception as e:
-        raise ConvertError(
-            f"Failed to download SDK for Ren'Py {version}.\n{e}\n"
-            f"Check https://www.renpy.org/dl/{version}/"
-        ) from e
-    partial.replace(dest)
-    return dest
+
+    normalized = normalize_version(version)
+    if not normalized:
+        raise ConvertError(f"Invalid Ren'Py version: {version}")
+
+    major, minor, patch = (int(i) for i in normalized.split("."))
+    candidates = [
+        f"{major}.{minor}.{candidate_patch}"
+        for candidate_patch in range(patch, -1, -1)
+    ]
+
+    last_404 = None
+    for candidate in candidates:
+        name = f"renpy-{candidate}-sdkarm.tar.bz2"
+        url = f"https://www.renpy.org/dl/{candidate}/{name}"
+        dest = cache_dir / name
+
+        if dest.is_file() and not force:
+            if candidate != normalized:
+                _log(
+                    log,
+                    f"Exact ARM SDK for Ren'Py {normalized} is unavailable; "
+                    f"using cached {candidate} from the same release series",
+                )
+            else:
+                _log(log, f"Using cached SDK: {dest.name}")
+            return dest, candidate
+
+        _log(log, f"Downloading {url}")
+        partial = dest.with_suffix(dest.suffix + ".partial")
+        try:
+            urllib.request.urlretrieve(url, partial)
+        except urllib.error.HTTPError as exc:
+            try:
+                partial.unlink()
+            except OSError:
+                pass
+            if exc.code == 404 and candidate != candidates[-1]:
+                last_404 = exc
+                _log(
+                    log,
+                    f"No published ARM SDK for Ren'Py {candidate}; "
+                    "trying the previous patch release",
+                )
+                continue
+            raise ConvertError(
+                f"Failed to download SDK for Ren'Py {candidate}.\n{exc}\n"
+                f"Check https://www.renpy.org/dl/{candidate}/"
+            ) from exc
+        except Exception as exc:
+            try:
+                partial.unlink()
+            except OSError:
+                pass
+            raise ConvertError(
+                f"Failed to download SDK for Ren'Py {candidate}.\n{exc}\n"
+                f"Check https://www.renpy.org/dl/{candidate}/"
+            ) from exc
+
+        partial.replace(dest)
+        if candidate != normalized:
+            _log(
+                log,
+                f"WARNING: Ren'Py {normalized} has no published ARM SDK. "
+                f"Using {candidate} from the same {major}.{minor}.x series. "
+                "Nightly-only engine changes may still require a newer runtime.",
+            )
+        return dest, candidate
+
+    raise ConvertError(
+        f"No published ARM SDK found for Ren'Py {normalized} or an earlier "
+        f"{major}.{minor}.x patch release."
+    ) from last_404
 
 
 def verify_sdk_checksum(sdk_file: Path, version: str, log: Optional[LogFn] = None) -> None:
@@ -932,9 +1002,10 @@ def convert_game(
 
     dest = game_dir / "lib" / f"{python_tag}-linux-aarch64"
     need_extract = force or not (dest / "librenpython.so").is_file()
+    runtime_version = version
     if need_extract:
-        sdk = download_sdk(version, cache, force=force, log=emit)
-        verify_sdk_checksum(sdk, version, log=emit)
+        sdk, runtime_version = download_sdk(version, cache, force=force, log=emit)
+        verify_sdk_checksum(sdk, runtime_version, log=emit)
         extract_aarch64(sdk, game_dir, python_tag, game_name, log=emit)
     else:
         emit(f"Already have {dest.name} (use force to re-download)")
@@ -944,7 +1015,7 @@ def convert_game(
             shutil.copy2(renpy_bin, named)
 
     patch_launcher_sh(launcher, log=emit)
-    write_steam_helpers(game_dir, game_name, version, launcher, log=emit)
+    write_steam_helpers(game_dir, game_name, runtime_version, launcher, log=emit)
 
     if output_zip is None:
         output_zip = game_dir.parent / f"{game_name}-linux-aarch64.zip"
