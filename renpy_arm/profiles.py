@@ -366,6 +366,24 @@ def _modernize_katawa_hd_source(text: str) -> str:
         "        if not who:\n            who = \"\"",
         "        if not who or who == NARRATOR_NAME or who == preparse_say_for_store(NARRATOR_NAME):\n            who = \"\"",
     )
+
+    # Ren'Py 8 no longer exposes Context.main_menu. The community Ren'Py 8
+    # port always uses the compatibility flag stored in _main_menu.
+    text = text.replace(
+        "    def mm_context():\n        if is_glrenpy():\n            return renpy.context()._main_menu\n        else:\n            return renpy.context().main_menu",
+        "    def mm_context():\n        return renpy.context()._main_menu",
+    )
+
+    # The modern port explicitly asks Ren'Py 8 to preserve 6.10.2-era script
+    # semantics. The HD source override otherwise drops this setting.
+    if "config.script_version = (6,10,2)" not in text:
+        text = text.replace(
+            "    config.minimumvolume = -10.0",
+            "    config.minimumvolume = -10.0\n    config.script_version = (6,10,2)",
+        )
+
+    # Python 3 dict views replace the old iteritems() API.
+    text = text.replace(".iteritems()", ".items()")
     return text
 
 
