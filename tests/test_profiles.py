@@ -6,6 +6,7 @@ from renpy_arm.convert import (
     ConvertError,
     convert_game,
     detect_version,
+    download_sdk,
     is_renpy_game,
     normalize_version,
     resolve_conversion_version,
@@ -294,3 +295,48 @@ def test_detect_version_reads_version_tuple_from_init(tmp_path: Path) -> None:
     )
 
     assert detect_version(root) == "8.4.1"
+
+
+def test_download_sdk_falls_back_within_same_minor_on_404(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import urllib.error
+
+    attempts = []
+
+    def fake_urlretrieve(url, destination):
+        attempts.append(url)
+        if "/8.4.2/" in url:
+            raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+        Path(destination).write_bytes(b"sdk-fixture")
+        return destination, None
+
+    monkeypatch.setattr("renpy_arm.convert.urllib.request.urlretrieve", fake_urlretrieve)
+
+    sdk, runtime_version = download_sdk("8.4.2", tmp_path, force=False)
+
+    assert runtime_version == "8.4.1"
+    assert sdk.name == "renpy-8.4.1-sdkarm.tar.bz2"
+    assert any("/8.4.2/" in url for url in attempts)
+    assert any("/8.4.1/" in url for url in attempts)
+
+
+def test_download_sdk_does_not_cross_minor_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import urllib.error
+
+    attempts = []
+
+    def fake_urlretrieve(url, destination):
+        attempts.append(url)
+        raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+
+    monkeypatch.setattr("renpy_arm.convert.urllib.request.urlretrieve", fake_urlretrieve)
+
+    with pytest.raises(ConvertError, match="No published ARM SDK found"):
+        download_sdk("8.4.0", tmp_path, force=False)
+
+    assert all("/8.4." in url for url in attempts)
