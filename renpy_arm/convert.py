@@ -28,6 +28,7 @@ HELPER_SH = {
     "make-linux-arm.sh",
     "launch-steam.sh",
     "add-to-steam.sh",
+    "diagnose-frame.sh",
     "make-rpgmaker-arm.sh",
 }
 
@@ -410,11 +411,21 @@ def write_steam_helpers(game_dir: Path, game_name: str, version: str, launcher: 
     wrap = game_dir / "launch-steam.sh"
     wrap.write_text(
         f"""#!/usr/bin/env bash
-# Steam-friendly wrapper: resolves game dir from this script, passes basedir explicitly.
+# Steam-friendly wrapper. The stock Ren'Py launcher resolves its own basedir,
+# so only forward the caller's real arguments.
 set -euo pipefail
 GAME_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "$GAME_DIR"
-exec "$GAME_DIR/{launcher_base}" "$GAME_DIR" "$@"
+
+# Windows-created ZIPs may lose Unix executable bits on the ARM runtime.
+for runtime in \
+    "$GAME_DIR"/lib/*-linux-aarch64/renpy \
+    "$GAME_DIR"/lib/*-linux-aarch64/python \
+    "$GAME_DIR"/lib/*-linux-aarch64/{game_name}; do
+    [[ -f "$runtime" ]] && chmod +x "$runtime" 2>/dev/null || true
+done
+
+exec "$GAME_DIR/{launcher_base}" "$@"
 """,
         encoding="utf-8",
         newline="\n",
