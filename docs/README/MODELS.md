@@ -4,7 +4,7 @@ Equivalent script: `renframe/models.py`
 
 ## Purpose
 
-Typed dataclasses and enums for inspection results.
+Typed dataclasses and enums for inspection and build results.
 
 ## Types
 
@@ -12,4 +12,6 @@ Typed dataclasses and enums for inspection results.
 - `Ownership` — runtime vs game
 - `NativeDependency` — one binary artifact
 - `VersionHint` — one detector strategy result
-- `GameInspection` — full report (`to_dict()` for JSON)
+- `GameInspection` — full source report (`to_dict()` for JSON)
+- `RuntimeInspection` — supplied ARM/SDK runtime report
+- `BuildResult` — build / dry-run outcome (`to_dict()` for JSON)

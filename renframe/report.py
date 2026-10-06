@@ -1,11 +1,11 @@
-"""Human-readable and JSON inspection reports."""
+"""Human-readable and JSON inspection / build reports."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from renframe.models import Compatibility, GameInspection, Ownership
+from renframe.models import BuildResult, Compatibility, GameInspection, Ownership
 
 
 def format_human_report(inspection: GameInspection) -> str:
@@ -97,3 +97,53 @@ def format_json_report(inspection: GameInspection) -> str:
     """Serialize inspection result as indented JSON."""
     payload: dict[str, Any] = inspection.to_dict()
     return json.dumps(payload, indent=2, sort_keys=False) + "\n"
+
+
+def format_build_report(result: BuildResult) -> str:
+    """Render a successful build (or dry-run) as plain text."""
+    lines: list[str] = []
+    if result.dry_run:
+        lines.append("RenFrame build dry-run")
+    else:
+        lines.append("RenFrame build complete")
+    lines.append("")
+    lines.append(f"Game: {result.display_name or result.game_name or 'Unknown'}")
+    lines.append(f"Source: {result.source_path}")
+    runtime_label_parts: list[str] = []
+    if result.runtime_version:
+        runtime_label_parts.append(f"Ren'Py {result.runtime_version}")
+    else:
+        runtime_label_parts.append("Ren'Py (version unknown)")
+    if result.runtime_architecture:
+        arch = result.runtime_architecture
+        if arch == "aarch64":
+            arch = "ARM64"
+        runtime_label_parts.append(arch.upper() if arch == "arm" else arch)
+    lines.append(f"Runtime: {' '.join(runtime_label_parts)}")
+    if result.runtime_path:
+        lines.append(f"Runtime path: {result.runtime_path}")
+    lines.append(f"Output: {result.output_path}")
+    lines.append("")
+    lines.append("Launcher:")
+    if result.launcher_path:
+        lines.append(f"  {result.launcher_path}")
+    else:
+        lines.append("  (none)")
+    if result.warnings:
+        lines.append("")
+        lines.append("Warnings:")
+        for warning in result.warnings:
+            lines.append(f"  {warning}")
+    if not result.dry_run and result.launcher_path:
+        lines.append("")
+        lines.append("Run:")
+        lines.append(f"  ./{result.launcher_path.name}")
+    elif result.dry_run:
+        lines.append("")
+        lines.append("Dry-run: no files were copied.")
+    return "\n".join(lines) + "\n"
+
+
+def format_build_json(result: BuildResult) -> str:
+    """Serialize a build result as indented JSON."""
+    return json.dumps(result.to_dict(), indent=2, sort_keys=False) + "\n"

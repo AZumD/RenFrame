@@ -1,1 +1,4 @@
 [2026-09-27] Baclaude scaffolded RenFrame inspection MVP: CLI, detector, ELF scanner, reports, tests. See /renframe/ and /tests/
+[2026-09-27] Baclaude implemented renframe build: runtime inspection/layout, staged ARM runtime + game/ inject, launcher, path safety, dry-run/force/version checks, expanded tests. See /renframe/builder.py /renframe/runtime.py /tests/test_builder.py
+
+[2026-10-06] Claude shipped RenFrame GUI convert (app/ + renpy_arm/), Windows/Frame build scripts, cleaned test games, preparing 0.1.0 GitHub release.

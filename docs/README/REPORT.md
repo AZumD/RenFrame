@@ -4,9 +4,11 @@ Equivalent script: `renframe/report.py`
 
 ## Purpose
 
-Render `GameInspection` as human text or JSON.
+Human-readable and JSON formatters for inspection and build results.
 
-## API
+## Functions
 
-- `format_human_report(inspection) -> str`
-- `format_json_report(inspection) -> str`
+- `format_human_report(GameInspection)`
+- `format_json_report(GameInspection)`
+- `format_build_report(BuildResult)`
+- `format_build_json(BuildResult)`

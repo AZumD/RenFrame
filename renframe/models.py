@@ -97,3 +97,65 @@ class GameInspection:
             "version_hints": [asdict(h) for h in self.version_hints],
             "compatibility": self.compatibility.value,
         }
+
+
+@dataclass
+class RuntimeInspection:
+    """Inspection result for a supplied Ren'Py runtime / SDK directory."""
+
+    path: Path
+    is_renpy_runtime: bool
+    architecture: str | None = None
+    version: str | None = None
+    generation: int | None = None
+    warnings: list[str] = field(default_factory=list)
+    has_renpy_sh: bool = False
+    has_renpy_py: bool = False
+    lib_architectures: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "path": str(self.path),
+            "is_renpy_runtime": self.is_renpy_runtime,
+            "architecture": self.architecture,
+            "version": self.version,
+            "generation": self.generation,
+            "warnings": list(self.warnings),
+            "has_renpy_sh": self.has_renpy_sh,
+            "has_renpy_py": self.has_renpy_py,
+            "lib_architectures": list(self.lib_architectures),
+        }
+
+
+@dataclass
+class BuildResult:
+    """Result of a (possibly dry-run) Frame build."""
+
+    success: bool
+    output_path: Path
+    launcher_path: Path | None
+    source_version: str | None
+    runtime_version: str | None
+    game_name: str | None = None
+    display_name: str | None = None
+    source_path: Path | None = None
+    runtime_path: Path | None = None
+    runtime_architecture: str | None = None
+    warnings: list[str] = field(default_factory=list)
+    dry_run: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "success": self.success,
+            "output_path": str(self.output_path),
+            "launcher_path": str(self.launcher_path) if self.launcher_path else None,
+            "source_version": self.source_version,
+            "runtime_version": self.runtime_version,
+            "game_name": self.game_name,
+            "display_name": self.display_name,
+            "source_path": str(self.source_path) if self.source_path else None,
+            "runtime_path": str(self.runtime_path) if self.runtime_path else None,
+            "runtime_architecture": self.runtime_architecture,
+            "warnings": list(self.warnings),
+            "dry_run": self.dry_run,
+        }

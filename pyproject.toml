@@ -5,17 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "renframe"
 version = "0.1.0"
-description = "Inspect Ren'Py games and prepare native Linux ARM64 (Steam Frame) builds."
+description = "Convert Ren'Py PC builds to native Linux ARM64 for Steam Frame."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "RenFrame contributors" }]
-keywords = ["renpy", "arm64", "steam-frame", "linux"]
+keywords = ["renpy", "arm64", "steam-frame", "linux", "gui"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
+    "Environment :: Win32 (MS Windows)",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Topic :: Games/Entertainment",
@@ -24,12 +26,14 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+gui = ["customtkinter>=5.2.2", "tkinterdnd2>=0.4.2"]
+build = ["pyinstaller>=6.3.0"]
 
 [project.scripts]
 renframe = "renframe.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["renframe*"]
+include = ["renframe*", "renpy_arm*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

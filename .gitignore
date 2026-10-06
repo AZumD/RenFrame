@@ -2,8 +2,6 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .eggs/
-dist/
-build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -13,3 +11,12 @@ venv/
 .env
 *.log
 .cache/
+.renpy-arm-cache/
+dist/
+build/RenFrame/
+build/RenPyArmConverter/
+*.spec
+LittleMatchGirl/
+LittleMatchGirl-frame/
+*.7z
+*.tar.gz
