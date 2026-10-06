@@ -457,7 +457,7 @@ echo "=== Ren'Py logs already present ==="
 find "$GAME_DIR" -maxdepth 2 -type f \\( -name 'traceback.txt' -o -name 'log.txt' -o -name 'errors.txt' \\) -print 2>/dev/null || true
 echo
 
-if [[ "$""{1:-}" == "--launch" ]]; then
+if [[ "${{1:-}}" == "--launch" ]]; then
     echo "=== traced launch ==="
     exec bash -x "$GAME_DIR/launch-steam.sh"
 fi
@@ -523,7 +523,7 @@ else
     [[ -e "$f" ]] || continue
     base=$(basename "$f")
     case "$base" in
-      make-linux-arm.sh|add-to-steam.sh|launch-steam.sh) continue ;;
+      make-linux-arm.sh|add-to-steam.sh|launch-steam.sh|diagnose-frame.sh) continue ;;
     esac
     if grep -q 'RENPY_PLATFORM' "$f" 2>/dev/null; then
       LAUNCH="$f"
