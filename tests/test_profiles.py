@@ -15,6 +15,7 @@ from renpy_arm.profiles import (
     detect_legacy_version,
     detect_profile,
     _modernize_katawa_hd_source,
+    _overlay_user_katawa_archives,
 )
 
 
@@ -128,3 +129,22 @@ def test_katawa_hd_source_python2_syntax_is_modernized() -> None:
     assert "chosen = set()" in modern
     assert "Render(width, height, opaque=True)" not in modern
     assert "Render(width, height)" in modern
+
+
+def test_katawa_hd_resource_archives_are_reapplied_with_priority(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    modern = tmp_path / "modern"
+    (source / "game").mkdir(parents=True)
+    (modern / "game").mkdir(parents=True)
+
+    good = source / "game" / "img_ui.rpa"
+    good.write_bytes(b"RPA-2.0 " + b"fixture")
+    bad = source / "game" / "not-really.rpa"
+    bad.write_bytes(b"NOTRPA!!")
+
+    copied = _overlay_user_katawa_archives(source, modern, log=None)
+
+    assert copied == 1
+    dest = modern / "game" / "zz-renframe-hd-img_ui.rpa"
+    assert dest.read_bytes() == good.read_bytes()
+    assert not (modern / "game" / "zz-renframe-hd-not-really.rpa").exists()
