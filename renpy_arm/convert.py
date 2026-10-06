@@ -359,6 +359,24 @@ def write_steam_helpers(game_dir: Path, game_name: str, version: str, launcher: 
 set -euo pipefail
 GAME_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "$GAME_DIR"
+
+# Steam Frame runs games through a dedicated X11 session under frametop.
+# Detect it at launch time instead of baking in the generated xauth filename.
+FRAME_RUNTIME="/run/user/$(id -u)/frametop"
+if [[ -d "$FRAME_RUNTIME" ]]; then
+  export DISPLAY=:2
+  export XDG_RUNTIME_DIR="$FRAME_RUNTIME"
+  export SDL_VIDEODRIVER=x11
+
+  if [[ -z "${{XAUTHORITY:-}}" || ! -r "${{XAUTHORITY:-}}" ]]; then
+    for candidate in "$FRAME_RUNTIME"/xauth_*; do
+      [[ -r "$candidate" ]] || continue
+      export XAUTHORITY="$candidate"
+      break
+    done
+  fi
+fi
+
 exec "$GAME_DIR/{launcher_base}" "$GAME_DIR" "$@"
 """,
         encoding="utf-8",
