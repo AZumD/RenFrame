@@ -330,7 +330,7 @@ def test_download_sdk_does_not_cross_minor_boundary(
 
     attempts = []
 
-    def fake_urlretrieve(url, destination):
+    def fake_urlretrieve(url, destination, reporthook=None):
         attempts.append(url)
         raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
 
