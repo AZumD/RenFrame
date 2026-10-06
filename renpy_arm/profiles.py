@@ -6,7 +6,6 @@ the normal converter then takes over and installs the ARM64 runtime.
 """
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import tarfile
@@ -218,13 +217,20 @@ def _download(
 
 
 def _safe_extract_tar(archive: Path, destination: Path) -> None:
-    """Extract a tar archive without allowing path traversal."""
+    """Extract a tar archive without allowing path/link traversal."""
     destination = destination.resolve()
     with tarfile.open(archive, "r:*") as tf:
         for member in tf.getmembers():
             target = (destination / member.name).resolve()
             try:
                 target.relative_to(destination)
+
+                if member.issym():
+                    link_target = (target.parent / member.linkname).resolve()
+                    link_target.relative_to(destination)
+                elif member.islnk():
+                    link_target = (destination / member.linkname).resolve()
+                    link_target.relative_to(destination)
             except ValueError as exc:
                 raise ProfileError(
                     f"Unsafe path in compatibility archive: {member.name}"
