@@ -51,7 +51,8 @@ python -m renpy_arm /path/to/MyGame-pc -o MyGame-linux-aarch64.zip
 
 ## Docs
 
-See [docs/README/OVERVIEW.md](docs/README/OVERVIEW.md).
+- [Project overview](docs/README/OVERVIEW.md)
+- [Ren'Py mod library research](docs/MOD_LIBRARY.md)
 
 ## License
 
