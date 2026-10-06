@@ -285,6 +285,21 @@ def _overlay_user_katawa_assets(source_game: Path, modern_game: Path, log: Optio
     _log(log, f"Reapplied user-owned Katawa assets ({copied} asset groups/files)")
 
 
+def _modernize_katawa_hd_source(text: str) -> str:
+    """Apply the small Python 2 -> 3 syntax fixes required by the pinned HD sources.
+
+    Keep this deliberately narrow. The Ren'Py 8 community port already carries
+    compatibility shims for runtime-era names such as xrange/unicode; these
+    replacements only address syntax that Python 3 cannot parse at all.
+    """
+    text = text.replace("except Exception, e:", "except Exception as e:")
+    text = text.replace(
+        'print "JESUS CHRIST IT\'S A LION, DISABLE FULLSCREEN"',
+        'print("JESUS CHRIST IT\'S A LION, DISABLE FULLSCREEN")',
+    )
+    return text
+
+
 def _overlay_hd_sources(
     modern_game: Path,
     cache_dir: Path,
@@ -306,7 +321,10 @@ def _overlay_hd_sources(
 
         destination = modern_game / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(cached, destination)
+
+        text = cached.read_text(encoding="utf-8", errors="replace")
+        modernized = _modernize_katawa_hd_source(text)
+        destination.write_text(modernized, encoding="utf-8", newline="\n")
 
         compiled = destination.with_suffix(".rpyc")
         if compiled.exists():
@@ -317,7 +335,11 @@ def _overlay_hd_sources(
     if game_cache.exists():
         shutil.rmtree(game_cache)
 
-    _log(log, f"Applied {len(KATAWA_HD_SOURCE_FILES)} HD source overrides")
+    _log(
+        log,
+        f"Applied {len(KATAWA_HD_SOURCE_FILES)} HD source overrides "
+        "(including Python 3 syntax fixes)",
+    )
 
 
 def migrate_profile(
