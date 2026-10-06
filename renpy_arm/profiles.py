@@ -75,6 +75,107 @@ KATAWA_HD_SOURCE_FILES = (
     "game/ui_settings.rpy",
 )
 
+
+# The packaged HD repository keeps its 1080p UI as loose files. The legacy
+# release the user supplies may not contain those files or .rpa archives, so
+# cache and overlay the pinned UI payload explicitly. This is ~19 MB at the
+# pinned commit, much smaller than cloning the multi-gigabyte HD repository.
+KATAWA_HD_UI_FILES = (
+    "game/ui/4lsl-small.png",
+    "game/ui/bg-acttitleframe.png",
+    "game/ui/bg-choice.png",
+    "game/ui/bg-choice_nochoice.png",
+    "game/ui/bg-comment.png",
+    "game/ui/bg-config.png",
+    "game/ui/bg-doublespeak.png",
+    "game/ui/bg-doublespeak_old.png",
+    "game/ui/bg-ex-gallery-lockedimage.png",
+    "game/ui/bg-gm.png",
+    "game/ui/bg-lockedtrack.png",
+    "game/ui/bg-narration.png",
+    "game/ui/bg-note.png",
+    "game/ui/bg-nvl.png",
+    "game/ui/bg-nvl_old.png",
+    "game/ui/bg-popup.png",
+    "game/ui/bg-say.png",
+    "game/ui/bt-blank.png",
+    "game/ui/bt-cf-bar-left.png",
+    "game/ui/bt-cf-bar-right.png",
+    "game/ui/bt-cf-checked.png",
+    "game/ui/bt-cf-thumb.png",
+    "game/ui/bt-cf-unchecked.png",
+    "game/ui/bt-cg-locked.png",
+    "game/ui/bt-del.png",
+    "game/ui/bt-gamepad.png",
+    "game/ui/bt-language.png",
+    "game/ui/bt-logolarge-heartonly.png",
+    "game/ui/bt-logolarge.png",
+    "game/ui/bt-logoonly.png",
+    "game/ui/bt-musicplay.png",
+    "game/ui/bt-musicstop.png",
+    "game/ui/bt-return.png",
+    "game/ui/bt-scribble.png",
+    "game/ui/bt-star.png",
+    "game/ui/bt-vscrollbar.png",
+    "game/ui/bt-vscrollbar2.png",
+    "game/ui/bt-vscrolldown.png",
+    "game/ui/bt-vscrollthumb.png",
+    "game/ui/bt-vscrollup.png",
+    "game/ui/cantaloupes.jpg",
+    "game/ui/cantaloupes.png",
+    "game/ui/climatic.jpg",
+    "game/ui/cred_logo.png",
+    "game/ui/ctc.png",
+    "game/ui/ctc_strip.png",
+    "game/ui/cuddlefish.jpg",
+    "game/ui/cuddlefish.png",
+    "game/ui/flourish_center.png",
+    "game/ui/flourish_left.png",
+    "game/ui/flourish_right.png",
+    "game/ui/icon.png",
+    "game/ui/main/00_tc1-hisao.png",
+    "game/ui/main/01_tc2-hanako.png",
+    "game/ui/main/02_tc3-hanako.png",
+    "game/ui/main/03_tc2-emi.png",
+    "game/ui/main/04_tc3-emi.png",
+    "game/ui/main/05_tc4-emi.png",
+    "game/ui/main/06_tc4-hanako.png",
+    "game/ui/main/07_tc2-lilly.png",
+    "game/ui/main/08_tc3-lilly.png",
+    "game/ui/main/09_tc4-lilly.png",
+    "game/ui/main/10_tc2-rin.png",
+    "game/ui/main/11_tc3-rin-hisao.png",
+    "game/ui/main/12_tc3-rin-rin.png",
+    "game/ui/main/13_tc4-rin.png",
+    "game/ui/main/14_tc2-shizune.png",
+    "game/ui/main/15_tc3-shizune.png",
+    "game/ui/main/16_tc4-shizune.png",
+    "game/ui/main/bg-main.png",
+    "game/ui/mousecursor.png",
+    "game/ui/prawns.png",
+    "game/ui/roll_mask.png",
+    "game/ui/sd-auto.png",
+    "game/ui/sd-emi-c.png",
+    "game/ui/sd-emi.png",
+    "game/ui/sd-hanako-c.png",
+    "game/ui/sd-hanako.png",
+    "game/ui/sd-lilly-c.png",
+    "game/ui/sd-lilly.png",
+    "game/ui/sd-mute.png",
+    "game/ui/sd-rin-c.png",
+    "game/ui/sd-rin.png",
+    "game/ui/sd-shizune-c.png",
+    "game/ui/sd-shizune.png",
+    "game/ui/sd-skip.png",
+    "game/ui/tc-neutral.png",
+    "game/ui/tr-checkwipe.png",
+    "game/ui/tr-checkwipe2.png",
+    "game/ui/tr-clockwipe.png",
+    "game/ui/tr-dots_col.png",
+    "game/ui/tr-flashback.png",
+    "game/ui/tr-letter.png",
+)
+
 # Asset directories are safe to take from the user's copy.  Do not copy the
 # legacy engine, common/, bytecode caches, or compiled scripts into the modern
 # base.
@@ -433,6 +534,36 @@ def _modernize_katawa_hd_source(text: str) -> str:
     return text
 
 
+def _overlay_hd_ui_assets(
+    modern_game: Path,
+    cache_dir: Path,
+    *,
+    force: bool,
+    log: Optional[LogFn],
+) -> int:
+    """Overlay the pinned 1080p Katawa HD UI payload onto the modern base."""
+    source_cache = cache_dir / "katawa-hd-ui" / KATAWA_HD_COMMIT
+    copied = 0
+
+    _log(log, "Applying Katawa Shoujo HD UI assets…")
+    for relative in KATAWA_HD_UI_FILES:
+        cached = source_cache / relative
+        _download(
+            KATAWA_HD_RAW + relative,
+            cached,
+            force=force,
+            log=log,
+        )
+
+        destination = modern_game / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(cached, destination)
+        copied += 1
+
+    _log(log, f"Applied {copied} pinned HD UI assets")
+    return copied
+
+
 def _overlay_hd_sources(
     modern_game: Path,
     cache_dir: Path,
@@ -511,8 +642,15 @@ def migrate_profile(
     _overlay_user_katawa_assets(source_game, modern_game, log)
 
     hd_archive_count = 0
+    hd_ui_count = 0
     if match.variant == "hd":
         hd_archive_count = _overlay_user_katawa_archives(source_game, modern_game, log)
+        hd_ui_count = _overlay_hd_ui_assets(
+            modern_game,
+            cache_dir,
+            force=force,
+            log=log,
+        )
         _overlay_hd_sources(
             modern_game,
             cache_dir,
@@ -534,6 +672,7 @@ def migrate_profile(
             "For the HD variant, RenFrame reapplies the user's local .rpa resource "
             "archives with high load priority, then reapplies source overrides from:\n"
             f"HD resource archives reapplied: {hd_archive_count}\n"
+            f"Pinned HD UI assets applied: {hd_ui_count}\n"
             f"https://github.com/{KATAWA_HD_REPO}\n"
             f"Pinned commit: {KATAWA_HD_COMMIT}\n\n"
             "The user's local game copy supplies the game assets that are overlaid "
