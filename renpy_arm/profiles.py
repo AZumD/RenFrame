@@ -285,6 +285,46 @@ def _overlay_user_katawa_assets(source_game: Path, modern_game: Path, log: Optio
     _log(log, f"Reapplied user-owned Katawa assets ({copied} asset groups/files)")
 
 
+def _overlay_user_katawa_archives(
+    source_game: Path,
+    modern_game: Path,
+    log: Optional[LogFn],
+) -> int:
+    """Copy legacy Katawa resource archives into the normalized game.
+
+    The packaged HD release keeps most of its upscaled assets in .rpa files
+    instead of loose game/ui, game/event, etc. Ren'Py 8 still understands the
+    legacy RPA formats. Prefix copied archives with "zz-" so they sort ahead
+    of the modern port's data.rpa and therefore win for matching resource paths.
+
+    Loose modernized .rpy/.rpyc files still take precedence over archive
+    contents, so script fixes remain authoritative.
+    """
+    source_payload = source_game / "game"
+    target_payload = modern_game / "game"
+    target_payload.mkdir(parents=True, exist_ok=True)
+
+    copied = 0
+    for src in sorted(source_payload.glob("*.rpa")):
+        try:
+            header = src.read_bytes()[:8]
+        except OSError:
+            continue
+        if not header.startswith(b"RPA-"):
+            _log(log, f"Skipping unrecognized archive: {src.name}")
+            continue
+
+        dest = target_payload / f"zz-renframe-hd-{src.name}"
+        shutil.copy2(src, dest)
+        copied += 1
+
+    if copied:
+        _log(log, f"Reapplied {copied} user-owned Katawa resource archives")
+    else:
+        _log(log, "No local Katawa .rpa resource archives found to reapply")
+    return copied
+
+
 def _modernize_katawa_hd_source(text: str) -> str:
     """Apply the small Python 2 -> 3 syntax fixes required by the pinned HD sources.
 
@@ -390,6 +430,7 @@ def migrate_profile(
     _overlay_user_katawa_assets(source_game, modern_game, log)
 
     if match.variant == "hd":
+        _overlay_user_katawa_archives(source_game, modern_game, log)
         _overlay_hd_sources(
             modern_game,
             cache_dir,
@@ -408,7 +449,8 @@ def migrate_profile(
             "This build was normalized using the known Ren'Py 8 Katawa Shoujo port:\n"
             f"{match.profile.reference_url}\n"
             "Pinned release: 8.0.3\n\n"
-            "For the HD variant, RenFrame also reapplies source overrides from:\n"
+            "For the HD variant, RenFrame reapplies the user's local .rpa resource "
+            "archives with high load priority, then reapplies source overrides from:\n"
             f"https://github.com/{KATAWA_HD_REPO}\n"
             f"Pinned commit: {KATAWA_HD_COMMIT}\n\n"
             "The user's local game copy supplies the game assets that are overlaid "
