@@ -268,3 +268,29 @@ def test_katawa_hd_ui_assets_are_overlaid_from_pinned_cache(
     assert (modern / "game" / "ui" / "bg-say.png").read_bytes() == b"hd-ui"
     assert (modern / "game" / "ui" / "bg-doublespeak.png").read_bytes() == b"hd-ui"
     assert len(requested) == 2
+
+
+def test_detect_version_reads_modern_script_version_file(tmp_path: Path) -> None:
+    root = tmp_path / "Modern Game"
+    (root / "game").mkdir(parents=True)
+    (root / "renpy").mkdir()
+    (root / "lib").mkdir()
+    (root / "game" / "script_version.txt").write_text(
+        "(8, 4, 1)",
+        encoding="utf-8",
+    )
+
+    assert detect_version(root) == "8.4.1"
+
+
+def test_detect_version_reads_version_tuple_from_init(tmp_path: Path) -> None:
+    root = tmp_path / "Modern Game"
+    (root / "game").mkdir(parents=True)
+    (root / "renpy").mkdir()
+    (root / "lib").mkdir()
+    (root / "renpy" / "__init__.py").write_text(
+        "version_tuple = (8, 4, 1, vc_version)\n",
+        encoding="utf-8",
+    )
+
+    assert detect_version(root) == "8.4.1"
