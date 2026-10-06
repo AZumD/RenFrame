@@ -10,11 +10,17 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $repoRoot
 
-# Prefer the currently-active virtual environment. Fall back to .venv, then PATH Python.
+# Prefer the active environment, then the dedicated Windows build venv.
+# A shared WSL checkout may contain a .venv whose Windows shim points back to
+# /usr/bin, so .venv-win must win over that fallback.
 $py = $null
 if ($env:VIRTUAL_ENV) {
   $activePy = Join-Path $env:VIRTUAL_ENV "Scripts\python.exe"
   if (Test-Path $activePy) { $py = $activePy }
+}
+if (-not $py) {
+  $windowsPy = Join-Path $repoRoot ".venv-win\Scripts\python.exe"
+  if (Test-Path $windowsPy) { $py = $windowsPy }
 }
 if (-not $py) {
   $legacyPy = Join-Path $repoRoot ".venv\Scripts\python.exe"
@@ -30,6 +36,27 @@ $entryPoint = Join-Path $repoRoot "app\main.py"
 if (-not (Test-Path $assetsPath)) {
   throw "Missing application assets: $assetsPath"
 }
+
+# A previously launched PyInstaller build can keep its Python/Tk DLLs locked
+# even after the GUI window disappears. Stop only processes whose executable
+# actually lives inside RenFrame's own dist directories before cleanup.
+$buildRoots = @(
+  (Join-Path $distPath "RenFrame"),
+  (Join-Path $distPath "windows\RenFrame")
+)
+
+Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | ForEach-Object {
+  $exe = $_.ExecutablePath
+  if (-not $exe) { return }
+  foreach ($root in $buildRoots) {
+    if ($exe.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+      Write-Host "Stopping stale build process $($_.Name) (PID $($_.ProcessId))"
+      Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+      break
+    }
+  }
+}
+Start-Sleep -Milliseconds 300
 
 if (Test-Path $workPath) { Remove-Item -Recurse -Force $workPath }
 if (Test-Path (Join-Path $distPath "RenFrame")) {
