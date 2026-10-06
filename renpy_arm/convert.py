@@ -371,13 +371,14 @@ def download_sdk(
                 partial.unlink()
             except OSError:
                 pass
-            if exc.code == 404 and candidate != candidates[-1]:
+            if exc.code == 404:
                 last_404 = exc
-                _log(
-                    log,
-                    f"No published ARM SDK for Ren'Py {candidate}; "
-                    "trying the previous patch release",
-                )
+                if candidate != candidates[-1]:
+                    _log(
+                        log,
+                        f"No published ARM SDK for Ren'Py {candidate}; "
+                        "trying the previous patch release",
+                    )
                 continue
             raise ConvertError(
                 f"Failed to download SDK for Ren'Py {candidate}.\n{exc}\n"
