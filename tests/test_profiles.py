@@ -164,3 +164,23 @@ def test_katawa_hd_resource_archives_are_reapplied_with_priority(tmp_path: Path)
     dest = modern / "game" / "zz-renframe-hd-img_ui.rpa"
     assert dest.read_bytes() == good.read_bytes()
     assert not (modern / "game" / "zz-renframe-hd-not-really.rpa").exists()
+
+
+def test_katawa_hd_context_and_script_compatibility_are_modernized() -> None:
+    source = (
+        "    def mm_context():\n"
+        "        if is_glrenpy():\n"
+        "            return renpy.context()._main_menu\n"
+        "        else:\n"
+        "            return renpy.context().main_menu\n"
+        "    config.minimumvolume = -10.0\n"
+        "    for pose, metadata in expressions.iteritems():\n"
+    )
+
+    modern = _modernize_katawa_hd_source(source)
+
+    assert "return renpy.context().main_menu" not in modern
+    assert "return renpy.context()._main_menu" in modern
+    assert "config.script_version = (6,10,2)" in modern
+    assert ".iteritems()" not in modern
+    assert ".items()" in modern
