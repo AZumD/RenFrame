@@ -131,6 +131,22 @@ def test_katawa_hd_source_python2_syntax_is_modernized() -> None:
     assert "Render(width, height)" in modern
 
 
+def test_katawa_hd_narrator_keeps_invisible_name_row() -> None:
+    source = (
+        '        store.narrator = Character(\' \', what_prefix="", what_suffix="", show_function=say_wrapper)\n'
+        '    init_vars()\n'
+        '    _game_menu_screen = "gm_bare"\n'
+        '        if not who:\n'
+        '            who = ""\n'
+    )
+
+    modern = _modernize_katawa_hd_source(source)
+
+    assert "Character(NARRATOR_NAME" in modern
+    assert 'NARRATOR_NAME = "{color=#0000}#{/color} "' in modern
+    assert "who == NARRATOR_NAME" in modern
+
+
 def test_katawa_hd_resource_archives_are_reapplied_with_priority(tmp_path: Path) -> None:
     source = tmp_path / "source"
     modern = tmp_path / "modern"
