@@ -16,6 +16,7 @@ from renpy_arm.profiles import (
     detect_profile,
     _katawa_variant,
     _modernize_katawa_hd_source,
+    _overlay_hd_ui_assets,
     _overlay_user_katawa_archives,
 )
 
@@ -232,3 +233,38 @@ def test_katawa_hd_archives_can_live_in_single_wrapper_parent(tmp_path: Path) ->
     assert (
         modern / "game" / "zz-renframe-hd-img_ui.rpa"
     ).read_bytes() == wrapped_archive.read_bytes()
+
+
+def test_katawa_hd_ui_assets_are_overlaid_from_pinned_cache(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    modern = tmp_path / "modern"
+    cache = tmp_path / "cache"
+    (modern / "game").mkdir(parents=True)
+
+    requested = []
+
+    def fake_download(url, destination, *, force=False, log=None):
+        requested.append((url, destination))
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"hd-ui")
+        return destination
+
+    monkeypatch.setattr("renpy_arm.profiles._download", fake_download)
+    monkeypatch.setattr(
+        "renpy_arm.profiles.KATAWA_HD_UI_FILES",
+        ("game/ui/bg-say.png", "game/ui/bg-doublespeak.png"),
+    )
+
+    copied = _overlay_hd_ui_assets(
+        modern,
+        cache,
+        force=False,
+        log=None,
+    )
+
+    assert copied == 2
+    assert (modern / "game" / "ui" / "bg-say.png").read_bytes() == b"hd-ui"
+    assert (modern / "game" / "ui" / "bg-doublespeak.png").read_bytes() == b"hd-ui"
+    assert len(requested) == 2
