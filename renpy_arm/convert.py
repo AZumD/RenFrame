@@ -104,6 +104,12 @@ def _from_py_source(path: Path) -> Optional[str]:
     )
     if m:
         return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
+    m = re.search(
+        r"""(?m)^version_tuple\s*=\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)""",
+        text,
+    )
+    if m:
+        return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
     for m in re.finditer(r"""['\"](\d+\.\d+\.\d+(?:\.\d+)?)['\"]""", text):
         n = normalize_version(m.group(1))
         if n:
@@ -146,6 +152,22 @@ def detect_version(game_dir: Path, override: Optional[str] = None) -> str:
         if not n:
             raise ConvertError(f"Invalid version override: {override}")
         return n
+
+    # Modern Ren'Py distributions can include the exact script/runtime version
+    # tuple as game/script_version.txt, for example "(8, 4, 1)". Prefer this
+    # distribution metadata when present.
+    script_version = game_dir / "game" / "script_version.txt"
+    if script_version.is_file():
+        try:
+            text = script_version.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        m = re.search(
+            r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)",
+            text,
+        )
+        if m:
+            return f"{m.group(1)}.{m.group(2)}.{m.group(3)}"
 
     for path in (
         game_dir / "renpy" / "vc_version.py",
