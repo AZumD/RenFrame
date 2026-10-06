@@ -406,6 +406,75 @@ def patch_launcher_sh(launcher: Path, log: Optional[LogFn] = None) -> None:
     _log(log, f"Patched {launcher.name}")
 
 
+def write_frame_diagnostics(game_dir: Path, game_name: str, log: Optional[LogFn] = None) -> Path:
+    diag = game_dir / "diagnose-frame.sh"
+    diag.write_text(
+        f"""#!/usr/bin/env bash
+set -u
+GAME_DIR=$(cd "$(dirname "$0")" && pwd)
+cd "$GAME_DIR"
+
+echo "=== RenFrame launch diagnostics ==="
+echo "game_dir=$GAME_DIR"
+echo "uname=$(uname -a)"
+echo "machine=$(uname -m)"
+echo
+
+echo "=== launchers ==="
+ls -l ./*.sh 2>/dev/null || true
+echo
+
+echo "=== ARM runtime ==="
+for runtime in \\
+    "$GAME_DIR"/lib/*-linux-aarch64/renpy \\
+    "$GAME_DIR"/lib/*-linux-aarch64/python \\
+    "$GAME_DIR"/lib/*-linux-aarch64/{game_name}; do
+    if [[ -f "$runtime" ]]; then
+        chmod +x "$runtime" 2>/dev/null || true
+        ls -l "$runtime"
+        command -v file >/dev/null 2>&1 && file "$runtime" || true
+    fi
+done
+echo
+
+echo "=== librenpython dependencies ==="
+for so in "$GAME_DIR"/lib/*-linux-aarch64/librenpython.so; do
+    [[ -f "$so" ]] || continue
+    echo "-- $so"
+    if command -v ldd >/dev/null 2>&1; then
+        ldd "$so" 2>&1 | grep -E 'not found|=>' || true
+    else
+        echo "ldd not installed"
+    fi
+done
+echo
+
+echo "=== platform-selection lines ==="
+grep -nE 'RENPY_PLATFORM|Linux-\\*|linux-aarch64|aarch64|arm64' ./*.sh 2>/dev/null || true
+echo
+
+echo "=== Ren'Py logs already present ==="
+find "$GAME_DIR" -maxdepth 2 -type f \\( -name 'traceback.txt' -o -name 'log.txt' -o -name 'errors.txt' \\) -print 2>/dev/null || true
+echo
+
+if [[ "$""{1:-}" == "--launch" ]]; then
+    echo "=== traced launch ==="
+    exec bash -x "$GAME_DIR/launch-steam.sh"
+fi
+
+echo "Run ./diagnose-frame.sh --launch to trace an actual launch."
+""",
+        encoding="utf-8",
+        newline="\n",
+    )
+    try:
+        diag.chmod(diag.stat().st_mode | 0o111)
+    except OSError:
+        pass
+    _log(log, "Wrote diagnose-frame.sh")
+    return diag
+
+
 def write_steam_helpers(game_dir: Path, game_name: str, version: str, launcher: Path, log: Optional[LogFn] = None) -> None:
     launcher_base = launcher.name
     wrap = game_dir / "launch-steam.sh"
@@ -431,6 +500,7 @@ exec "$GAME_DIR/{launcher_base}" "$@"
         newline="\n",
     )
 
+    diag = write_frame_diagnostics(game_dir, game_name, log=log)
     add = game_dir / "add-to-steam.sh"
     add.write_text(
         r'''#!/usr/bin/env bash
@@ -569,7 +639,7 @@ WHAT TO DO (on the Frame / ARM machine)
 
 3. Run:
 
-     chmod +x add-to-steam.sh launch-steam.sh *.sh
+     chmod +x add-to-steam.sh launch-steam.sh diagnose-frame.sh *.sh
      ./add-to-steam.sh
 
 4. Open your Steam library and look for "{game_name}" (non-Steam shortcut).
@@ -590,6 +660,10 @@ IF SOMETHING GOES WRONG
 
       ./launch-steam.sh
 
+    For a full launch trace:
+
+      ./diagnose-frame.sh --launch
+
 - You would rather add it by hand
     Steam → Games → Add a Non-Steam Game to My Library
     Browse to:  launch-steam.sh   (or the .desktop file in this folder)
@@ -599,6 +673,7 @@ FILES IN THIS FOLDER (Steam-related)
 ------------------------------------
   add-to-steam.sh     ← run this on the Frame to register with Steam
   launch-steam.sh     ← what Steam should launch
+  diagnose-frame.sh   ← platform/runtime checks + traced launch
   {game_name}.desktop
   README for adding games to steam.txt  ← this file
 
@@ -677,7 +752,7 @@ FRAME_INSTRUCTIONS = """On your Steam Frame (after copying the zip):
 2. Start Steam.
 3. In a terminal inside the unpacked game folder:
 
-     chmod +x add-to-steam.sh launch-steam.sh *.sh
+     chmod +x add-to-steam.sh launch-steam.sh diagnose-frame.sh *.sh
      ./add-to-steam.sh
 
 4. Find the game in your Steam library (non-Steam shortcut).
