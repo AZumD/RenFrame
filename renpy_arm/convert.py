@@ -355,10 +355,37 @@ def write_steam_helpers(game_dir: Path, game_name: str, version: str, launcher: 
     wrap = game_dir / "launch-steam.sh"
     wrap.write_text(
         f"""#!/usr/bin/env bash
-# Steam-friendly wrapper: resolves game dir from this script, passes basedir explicitly.
+# Steam-friendly wrapper: resolves game dir, prepares the Steam Frame desktop
+# environment when available, and passes basedir explicitly.
 set -euo pipefail
+
 GAME_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "$GAME_DIR"
+
+# Steam Frame's desktop/Xwayland session is separate from a plain shell/SSH
+# session. If the frametop runtime exists, target that session automatically.
+FRAME_RUNTIME_DIR="/run/user/$(id -u)/frametop"
+if [[ -d "$FRAME_RUNTIME_DIR" ]]; then
+    export XDG_RUNTIME_DIR="$FRAME_RUNTIME_DIR"
+    export DISPLAY=":2"
+    export SDL_VIDEODRIVER="x11"
+
+    # The xauth filename is generated per session, so never hardcode it.
+    XAUTH_FILE=""
+    for candidate in "$FRAME_RUNTIME_DIR"/xauth_*; do
+        [[ -e "$candidate" ]] || continue
+        if [[ -z "$XAUTH_FILE" || "$candidate" -nt "$XAUTH_FILE" ]]; then
+            XAUTH_FILE="$candidate"
+        fi
+    done
+    if [[ -n "$XAUTH_FILE" ]]; then
+        export XAUTHORITY="$XAUTH_FILE"
+    else
+        printf 'WARNING: no xauth_* file found in %s; launch may fail to connect to X11.\n' \
+            "$FRAME_RUNTIME_DIR" >&2
+    fi
+fi
+
 exec "$GAME_DIR/{launcher_base}" "$GAME_DIR" "$@"
 """,
         encoding="utf-8",
