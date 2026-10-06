@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "katawa-shoujo-hd-upscale",
+  "name": "Katawa Shoujo HD Upscale",
+  "scope": "game",
+  "game_id": "katawa-shoujo",
+  "type": "visual-hd",
+  "adult": false,
+  "version": null,
+  "maintenance_status": "Unknown",
+  "runtime_sensitive": true,
+  "source": {
+    "page_url": "https://github.com/scoopgoop/Katawa-Shoujo-HD-Upscale"
+  },
+  "artifact": {
+    "download_url": null
+  },
+  "install_method": "custom",
+  "install": [],
+  "conflicts": [],
+  "notes": "Repository includes engine/runtime files, so this is intentionally research-only until install semantics are verified."
+}

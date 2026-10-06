@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "just-natsuki",
+  "name": "Just Natsuki",
+  "scope": "game",
+  "game_id": "doki-doki-literature-club",
+  "type": "transformation",
+  "adult": false,
+  "version": "1.3.5",
+  "maintenance_status": "Maintained",
+  "runtime_sensitive": true,
+  "source": {
+    "page_url": "https://github.com/Just-Natsuki-Team/NatsukiModDev"
+  },
+  "artifact": {
+    "download_url": "https://github.com/Just-Natsuki-Team/NatsukiModDev/releases"
+  },
+  "install_method": "custom",
+  "install": [
+    {
+      "op": "copy_tree",
+      "source": "game",
+      "destination": "game",
+      "merge": true
+    },
+    {
+      "op": "copy_tree",
+      "source": "lib",
+      "destination": "lib",
+      "merge": true
+    },
+    {
+      "op": "copy_tree",
+      "source": "update",
+      "destination": "update",
+      "merge": true
+    }
+  ],
+  "conflicts": [
+    "monika-after-story",
+    "forever-and-ever",
+    "ddlc-normal-visual-novel"
+  ],
+  "notes": "Official manual install overlays game/, lib/, and update/. Must be applied before RenFrame chooses the final ARM64 runtime."
+}

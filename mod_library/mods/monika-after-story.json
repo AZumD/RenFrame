@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "monika-after-story",
+  "name": "Monika After Story",
+  "scope": "game",
+  "game_id": "doki-doki-literature-club",
+  "type": "transformation",
+  "adult": false,
+  "version": "0.12.19",
+  "maintenance_status": "Active",
+  "runtime_sensitive": true,
+  "source": {
+    "page_url": "https://github.com/Monika-After-Story/MonikaModDev"
+  },
+  "artifact": {
+    "download_url": "https://github.com/Monika-After-Story/MonikaModDev/releases"
+  },
+  "install_method": "custom",
+  "install": [],
+  "conflicts": [
+    "just-natsuki",
+    "forever-and-ever",
+    "ddlc-normal-visual-novel"
+  ],
+  "notes": "Manual release ZIP path exists, but exact current archive-root semantics still need a fixture before one-click automation."
+}

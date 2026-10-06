@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "forever-and-ever",
+  "name": "Forever & Ever",
+  "scope": "game",
+  "game_id": "doki-doki-literature-club",
+  "type": "transformation",
+  "adult": false,
+  "version": "1.0",
+  "maintenance_status": "Archived",
+  "runtime_sensitive": true,
+  "source": {
+    "page_url": "https://github.com/ForeverAndEverTeam/fae-mod"
+  },
+  "artifact": {
+    "download_url": "https://github.com/ForeverAndEverTeam/fae-mod/releases"
+  },
+  "install_method": "custom",
+  "install": [
+    {
+      "op": "overlay_archive",
+      "source": ".",
+      "destination": "."
+    },
+    {
+      "op": "delete",
+      "path": "game/scripts.rpa"
+    }
+  ],
+  "conflicts": [
+    "monika-after-story",
+    "just-natsuki",
+    "ddlc-normal-visual-novel"
+  ],
+  "notes": "Link-only is safest. Upstream is archived and explicitly does not support mod-manager installs."
+}

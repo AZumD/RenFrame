@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "slay-the-princess",
+  "name": "Slay the Princess",
+  "engine": "renpy",
+  "aliases": [],
+  "renpy_version": null,
+  "build_notes": "Track base game and Pristine Cut build differences when fingerprints are collected.",
+  "fingerprint": {
+    "launcher_names": [],
+    "required_paths": [],
+    "file_hashes": [],
+    "confidence": "research-seed"
+  },
+  "notes": "Seed entry from current mod-library research."
+}

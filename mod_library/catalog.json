@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "games": [
+    {
+      "id": "doki-doki-literature-club",
+      "name": "Doki Doki Literature Club"
+    },
+    {
+      "id": "katawa-shoujo",
+      "name": "Katawa Shoujo"
+    },
+    {
+      "id": "slay-the-princess",
+      "name": "Slay the Princess"
+    }
+  ],
+  "mods": [
+    {
+      "id": "ddlc-normal-visual-novel",
+      "name": "DDLC: The Normal Visual Novel!",
+      "game_id": "doki-doki-literature-club",
+      "scope": "game",
+      "adult": false
+    },
+    {
+      "id": "forever-and-ever",
+      "name": "Forever & Ever",
+      "game_id": "doki-doki-literature-club",
+      "scope": "game",
+      "adult": false
+    },
+    {
+      "id": "just-natsuki",
+      "name": "Just Natsuki",
+      "game_id": "doki-doki-literature-club",
+      "scope": "game",
+      "adult": false
+    },
+    {
+      "id": "katawa-shoujo-hd-upscale",
+      "name": "Katawa Shoujo HD Upscale",
+      "game_id": "katawa-shoujo",
+      "scope": "game",
+      "adult": false
+    },
+    {
+      "id": "monika-after-story",
+      "name": "Monika After Story",
+      "game_id": "doki-doki-literature-club",
+      "scope": "game",
+      "adult": false
+    },
+    {
+      "id": "neuro-renpy-implementation",
+      "name": "Neuro Ren'Py Implementation",
+      "game_id": null,
+      "scope": "universal",
+      "adult": false
+    },
+    {
+      "id": "the-clown-mod",
+      "name": "The Clown Mod",
+      "game_id": "slay-the-princess",
+      "scope": "game",
+      "adult": false
+    },
+    {
+      "id": "universal-renpy-mod",
+      "name": "Universal Ren'Py Mod (URM)",
+      "game_id": null,
+      "scope": "universal",
+      "adult": false
+    },
+    {
+      "id": "universal-renpy-walkthrough",
+      "name": "Universal Ren'Py Walkthrough",
+      "game_id": null,
+      "scope": "universal",
+      "adult": false
+    }
+  ]
+}
