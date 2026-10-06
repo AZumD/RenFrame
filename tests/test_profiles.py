@@ -113,6 +113,8 @@ def test_katawa_hd_source_python2_syntax_is_modernized() -> None:
         '    pass\n'
         'except Exception, e:\n'
         '    raise\n'
+        '    import sets\n'
+        '    chosen = sets.Set()\n'
     )
 
     modern = _modernize_katawa_hd_source(source)
@@ -120,3 +122,6 @@ def test_katawa_hd_source_python2_syntax_is_modernized() -> None:
     assert 'print("JESUS CHRIST IT\'S A LION, DISABLE FULLSCREEN")' in modern
     assert "except Exception as e:" in modern
     assert "except Exception, e:" not in modern
+    assert "import sets" not in modern
+    assert "sets.Set()" not in modern
+    assert "chosen = set()" in modern
