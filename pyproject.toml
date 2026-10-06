@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Convert Ren'Py PC builds to native Linux ARM64 for Steam Frame."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "GPL-3.0-only" }
 authors = [{ name = "RenFrame contributors" }]
 keywords = ["renpy", "arm64", "steam-frame", "linux", "gui"]
 classifiers = [
@@ -16,7 +16,7 @@ classifiers = [
     "Environment :: Console",
     "Environment :: Win32 (MS Windows)",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",

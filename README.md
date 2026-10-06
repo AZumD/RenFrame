@@ -55,4 +55,10 @@ See [docs/README/OVERVIEW.md](docs/README/OVERVIEW.md).
 
 ## License
 
-MIT
+[GNU General Public License v3.0](LICENSE) (GPL-3.0).
+
+Copyleft: if someone distributes RenFrame or a modified version, they must also provide the source under GPLv3 — they cannot take this code into closed proprietary software.
+
+---
+
+*Made with help of AI.*
