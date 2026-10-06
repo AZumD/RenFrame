@@ -326,9 +326,24 @@ def _overlay_user_katawa_archives(
     target_payload.mkdir(parents=True, exist_ok=True)
 
     # Normal Ren'Py distributions keep archives under game/, but some legacy
-    # repacks place them beside the launcher. Accept both layouts.
+    # repacks place them beside the launcher or one level above an auto-descended
+    # game directory. Accept those wrapper layouts without scanning arbitrary
+    # parent directories.
+    payloads = [source_game / "game", source_game]
+
+    parent = source_game.parent
+    try:
+        sibling_dirs = [
+            p for p in parent.iterdir()
+            if p.is_dir() and not p.name.startswith(".")
+        ]
+    except OSError:
+        sibling_dirs = []
+    if len(sibling_dirs) == 1 and sibling_dirs[0] == source_game:
+        payloads.extend((parent / "game", parent))
+
     archive_sources = {}
-    for payload in (source_game / "game", source_game):
+    for payload in payloads:
         if not payload.is_dir():
             continue
         for src in payload.glob("*.rpa"):
@@ -495,8 +510,9 @@ def migrate_profile(
 
     _overlay_user_katawa_assets(source_game, modern_game, log)
 
+    hd_archive_count = 0
     if match.variant == "hd":
-        _overlay_user_katawa_archives(source_game, modern_game, log)
+        hd_archive_count = _overlay_user_katawa_archives(source_game, modern_game, log)
         _overlay_hd_sources(
             modern_game,
             cache_dir,
@@ -517,6 +533,7 @@ def migrate_profile(
             "Pinned release: 8.0.3\n\n"
             "For the HD variant, RenFrame reapplies the user's local .rpa resource "
             "archives with high load priority, then reapplies source overrides from:\n"
+            f"HD resource archives reapplied: {hd_archive_count}\n"
             f"https://github.com/{KATAWA_HD_REPO}\n"
             f"Pinned commit: {KATAWA_HD_COMMIT}\n\n"
             "The user's local game copy supplies the game assets that are overlaid "
