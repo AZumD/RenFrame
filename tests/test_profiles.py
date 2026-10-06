@@ -214,3 +214,21 @@ def test_katawa_hd_archives_can_live_beside_launcher(tmp_path: Path) -> None:
 
     assert copied == 1
     assert (modern / "game" / "zz-renframe-hd-img_ui.rpa").read_bytes() == root_archive.read_bytes()
+
+
+def test_katawa_hd_archives_can_live_in_single_wrapper_parent(tmp_path: Path) -> None:
+    wrapper = tmp_path / "wrapper"
+    source = wrapper / "KatawaShoujo"
+    modern = tmp_path / "modern"
+    (source / "game").mkdir(parents=True)
+    (modern / "game").mkdir(parents=True)
+
+    wrapped_archive = wrapper / "img_ui.rpa"
+    wrapped_archive.write_bytes(b"RPA-2.0 " + b"fixture")
+
+    copied = _overlay_user_katawa_archives(source, modern, log=None)
+
+    assert copied == 1
+    assert (
+        modern / "game" / "zz-renframe-hd-img_ui.rpa"
+    ).read_bytes() == wrapped_archive.read_bytes()
