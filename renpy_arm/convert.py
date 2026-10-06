@@ -649,28 +649,31 @@ steam_is_running() {
 }
 
 if command -v steamos-add-to-steam >/dev/null 2>&1; then
-  log "Adding via steamos-add-to-steam…"
-  steamos-add-to-steam "$DESKTOP"
+  log "Adding launcher directly via steamos-add-to-steam…"
+  # SteamVR on Steam Frame does not reliably follow .desktop indirection.
+  # Register the executable wrapper itself, which is known to launch correctly
+  # from both the desktop and SteamVR library.
+  steamos-add-to-steam "$LAUNCH"
   log "Done. Check your Steam library for \"$NAME\"."
   log "Properties → Compatibility: Steam Linux Runtime / native (not Proton)."
   exit 0
 fi
 
 command -v steam >/dev/null 2>&1 || die "Neither steamos-add-to-steam nor steam found.
-Add manually: Steam → Add a Non-Steam Game → $DESKTOP"
+Add manually: Steam → Add a Non-Steam Game → $LAUNCH"
 
 steam_is_running || die "Steam does not appear to be running. Start Steam, then re-run:
   $0"
 
 py=$(command -v python3 || command -v python || true)
 if [[ -n "$py" ]]; then
-  encoded=$("$py" -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$DESKTOP")
+  encoded=$("$py" -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$LAUNCH")
 else
-  encoded=${DESKTOP// /%20}
+  encoded=${LAUNCH// /%20}
 fi
 
 touch /tmp/addnonsteamgamefile 2>/dev/null || true
-log "Adding via steam://addnonsteamgame/…"
+log "Adding launcher directly via steam://addnonsteamgame/…"
 steam "steam://addnonsteamgame/${encoded}"
 log "Done. Check your Steam library for \"$NAME\"."
 log "Properties → Compatibility: Steam Linux Runtime / native (not Proton)."
