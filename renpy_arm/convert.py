@@ -405,7 +405,28 @@ def extract_aarch64(
     return dest
 
 
+def normalize_shell_script(path: Path, log: Optional[LogFn] = None) -> bool:
+    """Normalize a shell script to Unix LF endings.
+
+    RenFrame commonly runs on Windows, while the resulting package is executed
+    on Linux. A CRLF shebang becomes /bin/sh^M on Linux and cannot be executed.
+    """
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return False
+
+    normalized = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    if normalized == data:
+        return False
+
+    path.write_bytes(normalized)
+    _log(log, f"Normalized LF line endings: {path.name}")
+    return True
+
+
 def patch_launcher_sh(launcher: Path, log: Optional[LogFn] = None) -> None:
+    normalize_shell_script(launcher, log=log)
     text = launcher.read_text(encoding="utf-8", errors="replace")
     if "linux-aarch64" in text and re.search(r"aarch64|arm64", text):
         _log(log, "Launcher already maps aarch64/arm64")
@@ -428,7 +449,7 @@ def patch_launcher_sh(launcher: Path, log: Optional[LogFn] = None) -> None:
     bak = launcher.with_suffix(launcher.suffix + ".bak-before-arm")
     if not bak.exists():
         bak.write_text(text, encoding="utf-8")
-    launcher.write_text(new, encoding="utf-8")
+    launcher.write_text(new, encoding="utf-8", newline="\n")
     _log(log, f"Patched {launcher.name}")
 
 
