@@ -305,7 +305,7 @@ def test_download_sdk_falls_back_within_same_minor_on_404(
 
     attempts = []
 
-    def fake_urlretrieve(url, destination):
+    def fake_urlretrieve(url, destination, reporthook=None):
         attempts.append(url)
         if "/8.4.2/" in url:
             raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
