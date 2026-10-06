@@ -31,6 +31,7 @@ build = ["pyinstaller>=6.3.0"]
 
 [project.scripts]
 renframe = "renframe.cli:main"
+renframe-library = "renframe.library_manager:main"
 
 [tool.setuptools.packages.find]
 include = ["renframe*", "renpy_arm*"]

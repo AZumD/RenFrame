@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "ddlc-normal-visual-novel",
+  "name": "DDLC: The Normal Visual Novel!",
+  "scope": "game",
+  "game_id": "doki-doki-literature-club",
+  "type": "transformation",
+  "adult": false,
+  "version": "1.5.0",
+  "maintenance_status": "Archived",
+  "runtime_sensitive": false,
+  "source": {
+    "page_url": "https://github.com/Skull220/DDLCtVN"
+  },
+  "artifact": {
+    "download_url": "https://github.com/Skull220/DDLCtVN/releases"
+  },
+  "install_method": "custom",
+  "install": [],
+  "conflicts": [
+    "monika-after-story",
+    "just-natsuki",
+    "forever-and-ever"
+  ],
+  "notes": "Keep non-automated until the release archive's exact destination layout is verified."
+}

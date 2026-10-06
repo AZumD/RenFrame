@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "the-clown-mod",
+  "name": "The Clown Mod",
+  "scope": "game",
+  "game_id": "slay-the-princess",
+  "type": "content",
+  "adult": false,
+  "version": "demo_clown",
+  "maintenance_status": "Unknown",
+  "runtime_sensitive": false,
+  "source": {
+    "page_url": "https://github.com/manosrules/The-Clown-Mod"
+  },
+  "artifact": {
+    "download_url": null
+  },
+  "install_method": "custom",
+  "install": [],
+  "conflicts": [],
+  "notes": "Research candidate. Verify supported game build and archive layout before enabling automation."
+}

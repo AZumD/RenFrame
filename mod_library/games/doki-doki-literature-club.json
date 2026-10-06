@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "doki-doki-literature-club",
+  "name": "Doki Doki Literature Club",
+  "engine": "renpy",
+  "aliases": [
+    "DDLC"
+  ],
+  "renpy_version": null,
+  "build_notes": "Original DDLC only; DDLC Plus is a different product and must not match this game ID.",
+  "fingerprint": {
+    "launcher_names": [],
+    "required_paths": [
+      "game/scripts.rpa"
+    ],
+    "file_hashes": [],
+    "confidence": "research-seed"
+  },
+  "notes": "Collect verified clean-build hashes before exact matching."
+}

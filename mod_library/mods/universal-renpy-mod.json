@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "universal-renpy-mod",
+  "name": "Universal Ren'Py Mod (URM)",
+  "scope": "universal",
+  "game_id": null,
+  "type": "utility",
+  "adult": false,
+  "version": null,
+  "maintenance_status": "Maintained",
+  "runtime_sensitive": false,
+  "source": {
+    "page_url": "https://0x52.dev/mods/Universal-Ren-Py-Mod-1000"
+  },
+  "artifact": {
+    "download_url": null
+  },
+  "install_method": "copy_rpa_to_game",
+  "install": [
+    {
+      "op": "copy_file",
+      "source": "0x52_URM.rpa",
+      "destination": "game/0x52_URM.rpa"
+    }
+  ],
+  "conflicts": [],
+  "notes": "Official install is a single RPA copy into game/. Resolve the current release from upstream."
+}

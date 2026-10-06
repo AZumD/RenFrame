@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "universal-renpy-walkthrough",
+  "name": "Universal Ren'Py Walkthrough",
+  "scope": "universal",
+  "game_id": null,
+  "type": "walkthrough",
+  "adult": false,
+  "version": "2.0.1",
+  "maintenance_status": "Active",
+  "runtime_sensitive": false,
+  "source": {
+    "page_url": "https://github.com/BCassO/universal-renpy-walkthrough"
+  },
+  "artifact": {
+    "download_url": "https://github.com/BCassO/universal-renpy-walkthrough/releases"
+  },
+  "install_method": "merge_game_directory",
+  "install": [
+    {
+      "op": "copy_tree",
+      "source": "__urw",
+      "destination": "game/__urw",
+      "merge": true
+    }
+  ],
+  "conflicts": [],
+  "notes": "Copy the release __urw directory into the target game's game/ directory."
+}

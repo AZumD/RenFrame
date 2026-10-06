@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "neuro-renpy-implementation",
+  "name": "Neuro Ren'Py Implementation",
+  "scope": "universal",
+  "game_id": null,
+  "type": "accessibility",
+  "adult": false,
+  "version": "0.2.0",
+  "maintenance_status": "Active",
+  "runtime_sensitive": true,
+  "source": {
+    "page_url": "https://github.com/caheuer/neuro-renpy-implementation"
+  },
+  "artifact": {
+    "download_url": "https://github.com/caheuer/neuro-renpy-implementation/releases"
+  },
+  "install_method": "contents_to_game",
+  "install": [
+    {
+      "op": "overlay_archive",
+      "source": ".",
+      "destination": "game"
+    }
+  ],
+  "conflicts": [],
+  "notes": "Desktop-only upstream integration. Re-inspect because bundled Python modules may interact with the game's Ren'Py/Python generation."
+}

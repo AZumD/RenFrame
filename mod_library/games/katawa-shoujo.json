@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "katawa-shoujo",
+  "name": "Katawa Shoujo",
+  "engine": "renpy",
+  "aliases": [
+    "KS"
+  ],
+  "renpy_version": null,
+  "build_notes": "Legacy Ren'Py title; runtime replacement needs special care.",
+  "fingerprint": {
+    "launcher_names": [],
+    "required_paths": [],
+    "file_hashes": [],
+    "confidence": "research-seed"
+  },
+  "notes": "Seed entry from current mod-library research."
+}

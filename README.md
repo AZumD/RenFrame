@@ -42,6 +42,23 @@ CLI:
 python -m renpy_arm /path/to/MyGame-pc -o MyGame-linux-aarch64.zip
 ```
 
+### Mod Library Manager
+
+Maintainers can browse, add, edit, inspect, and validate the machine-readable game/mod catalog without hand-editing JSON:
+
+```bash
+pip install -e .
+renframe-library
+```
+
+Or from the repository checkout:
+
+```bash
+python -m renframe.library_manager
+```
+
+The manager never commits or pushes automatically. Review its changes with the built-in **Git diff** view, then commit normally.
+
 ## Native builds
 
 | Target | Script |
@@ -53,6 +70,7 @@ python -m renpy_arm /path/to/MyGame-pc -o MyGame-linux-aarch64.zip
 
 - [Project overview](docs/README/OVERVIEW.md)
 - [Ren'Py mod library research](docs/MOD_LIBRARY.md)
+- [Machine-readable mod library](mod_library/README.md)
 
 ## License
 
