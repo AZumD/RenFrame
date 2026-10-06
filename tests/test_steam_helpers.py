@@ -59,3 +59,16 @@ def test_steam_wrapper_discovers_frametop_x11_environment(tmp_path: Path) -> Non
     assert '"$FRAME_RUNTIME_DIR"/xauth_*' in wrapper
     assert 'export XAUTHORITY="$XAUTH_FILE"' in wrapper
     assert 'exec "$GAME_DIR/Sample Game.sh" "$@"' in wrapper
+
+
+def test_add_to_steam_registers_direct_launcher_not_desktop_file(tmp_path: Path) -> None:
+    launcher = tmp_path / "Sample Game.sh"
+    launcher.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+
+    write_steam_helpers(tmp_path, "Sample Game", "8.5.3", launcher)
+
+    helper = (tmp_path / "add-to-steam.sh").read_text(encoding="utf-8")
+    assert 'steamos-add-to-steam "$LAUNCH"' in helper
+    assert 'steamos-add-to-steam "$DESKTOP"' not in helper
+    assert 'safe=""))\' "$LAUNCH")' in helper
+    assert 'safe=""))\' "$DESKTOP")' not in helper
