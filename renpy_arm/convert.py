@@ -24,6 +24,7 @@ from .profiles import (
 )
 
 LogFn = Callable[[str], None]
+ProgressFn = Callable[[str, Optional[float], Optional[str]], None]
 
 HELPER_SH = {
     "make-linux-arm.sh",
@@ -52,6 +53,29 @@ class ConvertError(Exception):
 def _log(log: Optional[LogFn], msg: str) -> None:
     if log:
         log(msg)
+
+
+def _progress(
+    progress: Optional[ProgressFn],
+    stage: str,
+    fraction: Optional[float] = None,
+    detail: Optional[str] = None,
+) -> None:
+    if progress:
+        if fraction is not None:
+            fraction = max(0.0, min(1.0, fraction))
+        progress(stage, fraction, detail)
+
+
+def _human_bytes(value: int) -> str:
+    size = float(max(0, value))
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size < 1024.0 or unit == "TB":
+            if unit == "B":
+                return f"{int(size)} {unit}"
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} TB"
 
 
 def normalize_version(s: str) -> Optional[str]:
@@ -324,6 +348,7 @@ def download_sdk(
     cache_dir: Path,
     force: bool,
     log: Optional[LogFn] = None,
+    progress: Optional[ProgressFn] = None,
 ) -> tuple[Path, str]:
     """Download an ARM SDK, with a conservative same-series fallback.
 
@@ -360,12 +385,26 @@ def download_sdk(
                 )
             else:
                 _log(log, f"Using cached SDK: {dest.name}")
+            _progress(progress, "Downloading runtime", 1.0, f"Cached {dest.name}")
             return dest, candidate
 
         _log(log, f"Downloading {url}")
+        _progress(progress, "Downloading runtime", 0.0, name)
         partial = dest.with_suffix(dest.suffix + ".partial")
+
+        def reporthook(blocks: int, block_size: int, total_size: int) -> None:
+            downloaded = blocks * block_size
+            if total_size > 0:
+                downloaded = min(downloaded, total_size)
+                fraction = downloaded / total_size
+                detail = f"{name}  ·  {_human_bytes(downloaded)} / {_human_bytes(total_size)}"
+            else:
+                fraction = None
+                detail = f"{name}  ·  {_human_bytes(downloaded)}"
+            _progress(progress, "Downloading runtime", fraction, detail)
+
         try:
-            urllib.request.urlretrieve(url, partial)
+            urllib.request.urlretrieve(url, partial, reporthook=reporthook)
         except urllib.error.HTTPError as exc:
             try:
                 partial.unlink()
@@ -378,6 +417,12 @@ def download_sdk(
                         log,
                         f"No published ARM SDK for Ren'Py {candidate}; "
                         "trying the previous patch release",
+                    )
+                    _progress(
+                        progress,
+                        "Downloading runtime",
+                        0.0,
+                        f"{candidate} unavailable; trying previous patch",
                     )
                 continue
             raise ConvertError(
@@ -874,6 +919,7 @@ def create_zip_archive(
     out_path: Path,
     full: bool = False,
     log: Optional[LogFn] = None,
+    progress: Optional[ProgressFn] = None,
 ) -> Path:
     skip_dirs = {".renpy-arm-cache", "_arm_experiment", ".git"}
     skip_names = {
@@ -901,17 +947,42 @@ def create_zip_archive(
                 return False
         return True
 
+    files = [
+        path for path in game_dir.rglob("*")
+        if path.is_file() and wanted(path)
+    ]
+    total_bytes = sum(path.stat().st_size for path in files)
+    written_bytes = 0
+
     if out_path.exists():
         out_path.unlink()
     _log(log, f"Creating archive {out_path.name}…")
+    _progress(progress, "Creating output zip", 0.0, out_path.name)
     with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-        for path in game_dir.rglob("*"):
-            if not path.is_file():
-                continue
-            if not wanted(path):
-                continue
+        for path in files:
             arc = Path(game_name) / path.relative_to(game_dir)
-            zf.write(path, arcname=str(arc).replace("\\", "/"))
+            arcname = str(arc).replace("\\", "/")
+            info = zipfile.ZipInfo.from_file(path, arcname=arcname)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info._compresslevel = 6
+            file_size = path.stat().st_size
+            with path.open("rb") as source_file, zf.open(info, "w", force_zip64=True) as zip_file:
+                while True:
+                    chunk = source_file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    zip_file.write(chunk)
+                    written_bytes += len(chunk)
+                    fraction = written_bytes / total_bytes if total_bytes else 1.0
+                    _progress(
+                        progress,
+                        "Creating output zip",
+                        fraction,
+                        f"{path.name}  ·  {_human_bytes(written_bytes)} / {_human_bytes(total_bytes)}",
+                    )
+            if file_size == 0 and total_bytes == 0:
+                _progress(progress, "Creating output zip", 1.0, path.name)
+    _progress(progress, "Creating output zip", 1.0, out_path.name)
     _log(log, f"Archive ready: {out_path}")
     return out_path
 
@@ -942,6 +1013,7 @@ def convert_game(
     work_dir: Optional[Path] = None,
     full_archive: bool = False,
     log: Optional[LogFn] = None,
+    progress: Optional[ProgressFn] = None,
 ) -> ConvertResult:
     """
     Convert a Ren'Py PC game folder or archive into a Linux aarch64 zip.
@@ -960,10 +1032,12 @@ def convert_game(
     cache = cache_dir or default_cache_dir()
     cache.mkdir(parents=True, exist_ok=True)
 
+    _progress(progress, "Inspecting game", None, source.name)
     game_dir = resolve_input(source, work, log=emit)
 
     profile_match = detect_profile(game_dir)
     if profile_match is not None:
+        _progress(progress, "Applying compatibility profile", None, profile_match.profile.title)
         try:
             game_dir = migrate_profile(
                 profile_match,
@@ -988,6 +1062,7 @@ def convert_game(
             "modern lib/ runtime layout and no compatibility profile matched."
         )
 
+    _progress(progress, "Detecting Ren'Py version", None, None)
     launcher = find_launcher_sh(game_dir)
     game_name = launcher.stem
     python_tag = detect_python_tag(game_dir)
@@ -1005,8 +1080,16 @@ def convert_game(
     need_extract = force or not (dest / "librenpython.so").is_file()
     runtime_version = version
     if need_extract:
-        sdk, runtime_version = download_sdk(version, cache, force=force, log=emit)
+        sdk, runtime_version = download_sdk(
+            version,
+            cache,
+            force=force,
+            log=emit,
+            progress=progress,
+        )
+        _progress(progress, "Verifying runtime", None, sdk.name)
         verify_sdk_checksum(sdk, runtime_version, log=emit)
+        _progress(progress, "Extracting ARM64 runtime", None, sdk.name)
         extract_aarch64(sdk, game_dir, python_tag, game_name, log=emit)
     else:
         emit(f"Already have {dest.name} (use force to re-download)")
@@ -1015,14 +1098,23 @@ def convert_game(
         if renpy_bin.is_file() and not named.exists():
             shutil.copy2(renpy_bin, named)
 
+    _progress(progress, "Patching launchers", None, launcher.name)
     patch_launcher_sh(launcher, log=emit)
     write_steam_helpers(game_dir, game_name, runtime_version, launcher, log=emit)
 
     if output_zip is None:
         output_zip = game_dir.parent / f"{game_name}-linux-aarch64.zip"
     output_zip = output_zip.resolve()
-    create_zip_archive(game_dir, game_name, output_zip, full=full_archive, log=emit)
+    create_zip_archive(
+        game_dir,
+        game_name,
+        output_zip,
+        full=full_archive,
+        log=emit,
+        progress=progress,
+    )
 
+    _progress(progress, "Done", 1.0, output_zip.name)
     emit("Done.")
     return ConvertResult(
         game_dir=game_dir,
