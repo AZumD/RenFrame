@@ -558,7 +558,9 @@ if [[ -d "$FRAME_RUNTIME_DIR" ]]; then
     fi
 fi
 
-# Windows-created ZIPs may lose Unix executable bits on the ARM runtime.
+# Windows-created ZIPs may lose Unix executable bits on both the Ren'Py
+# launcher script and the ARM runtime binaries.
+chmod +x "$GAME_DIR/{launcher_base}" 2>/dev/null || true
 for runtime in \
     "$GAME_DIR"/lib/*-linux-aarch64/renpy \
     "$GAME_DIR"/lib/*-linux-aarch64/python \
