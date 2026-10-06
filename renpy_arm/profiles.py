@@ -349,6 +349,23 @@ def _modernize_katawa_hd_source(text: str) -> str:
         "renpy.display.render.Render(width, height, opaque=True)",
         "renpy.display.render.Render(width, height)",
     )
+
+    # Ren'Py 8 collapses the HD release's whitespace-only narrator name. That
+    # removes the invisible name row and shifts narration text upward while
+    # named dialogue remains aligned. The known-good Ren'Py 8 port uses an
+    # invisible non-whitespace marker to preserve the row height.
+    text = text.replace(
+        "store.narrator = Character(' ', what_prefix=\"\", what_suffix=\"\", show_function=say_wrapper)",
+        "store.narrator = Character(NARRATOR_NAME, what_prefix=\"\", what_suffix=\"\", show_function=say_wrapper)",
+    )
+    text = text.replace(
+        "    init_vars()\n    _game_menu_screen = \"gm_bare\"",
+        "    init_vars()\n    NARRATOR_NAME = \"{color=#0000}#{/color} \"\n    _game_menu_screen = \"gm_bare\"",
+    )
+    text = text.replace(
+        "        if not who:\n            who = \"\"",
+        "        if not who or who == NARRATOR_NAME or who == preparse_say_for_store(NARRATOR_NAME):\n            who = \"\"",
+    )
     return text
 
 
