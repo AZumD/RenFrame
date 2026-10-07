@@ -36,6 +36,14 @@ HELPER_SH = {
 
 VER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:\.\d+)?")
 
+# These final releases are known to have had packaging/build problems. The
+# immediate fix releases are safer ARM runtime targets and preserve the same
+# Ren'Py/Python compatibility line.
+ARM_RUNTIME_REDIRECTS = {
+    "7.7.2": "7.7.3",
+    "8.2.2": "8.2.3",
+}
+
 
 @dataclass
 class ConvertResult:
@@ -107,12 +115,35 @@ def find_launcher_sh(game_dir: Path) -> Path:
     raise ConvertError("No Ren'Py .sh launcher found (expected a script with RENPY_PLATFORM).")
 
 
-def detect_python_tag(game_dir: Path) -> str:
+def detect_python_tag(game_dir: Path, version: Optional[str] = None) -> str:
+    """Detect whether this distribution needs the Python 2 or Python 3 runtime.
+
+    Ren'Py 7.x is Python 2 and Ren'Py 8.x is Python 3. Newer distributions
+    usually encode that in lib/py2-* or lib/py3-* directory names, but older
+    7.x builds can use pre-prefix runtime directory names. In ambiguous layouts,
+    use the detected Ren'Py major version instead of defaulting old games to
+    Python 3.
+    """
     lib = game_dir / "lib"
     has_py2 = any(lib.glob("py2-*")) if lib.is_dir() else False
     has_py3 = any(lib.glob("py3-*")) if lib.is_dir() else False
+
     if has_py2 and not has_py3:
         return "py2"
+    if has_py3 and not has_py2:
+        return "py3"
+
+    if version:
+        normalized = normalize_version(version)
+        if normalized:
+            major = int(normalized.split(".", 1)[0])
+            if major <= 7:
+                return "py2"
+            if major >= 8:
+                return "py3"
+
+    # Modern Ren'Py is Python 3, so keep py3 as the final fallback only when
+    # neither the runtime layout nor version metadata can disambiguate it.
     return "py3"
 
 
@@ -367,7 +398,21 @@ def download_sdk(
     major, minor, patch = (int(i) for i in normalized.split("."))
 
     bridge_runtime = None
-    if major == 7 and minor == 4:
+    redirected_runtime = ARM_RUNTIME_REDIRECTS.get(normalized)
+    if redirected_runtime:
+        candidates = [redirected_runtime]
+        _log(
+            log,
+            f"Ren'Py {normalized} has a known broken release build; "
+            f"using fixed runtime {redirected_runtime}",
+        )
+        _progress(
+            progress,
+            "Downloading runtime",
+            0.0,
+            f"{normalized} → {redirected_runtime} fixed runtime",
+        )
+    elif major == 7 and minor == 4:
         # Linux aarch64 support first landed in Ren'Py 7.5. Ren'Py 7.5 is the
         # Python 2.7 continuation of the 7.x line, so it is the narrowest
         # generic compatibility bridge for 7.4 games.
@@ -408,6 +453,12 @@ def download_sdk(
                     log,
                     f"Using cached Ren'Py {candidate} ARM compatibility runtime "
                     f"for Ren'Py {normalized}",
+                )
+            elif redirected_runtime:
+                _log(
+                    log,
+                    f"Using cached fixed Ren'Py {candidate} ARM runtime "
+                    f"for problematic {normalized}",
                 )
             elif candidate != normalized:
                 _log(
@@ -479,6 +530,12 @@ def download_sdk(
                 f"Using Ren'Py {candidate}, the Python 2.7 ARM compatibility "
                 "runtime. Game-specific incompatibilities may still require a "
                 "compatibility profile.",
+            )
+        elif redirected_runtime:
+            _log(
+                log,
+                f"Ren'Py {normalized} is redirected to fixed ARM runtime "
+                f"{candidate}.",
             )
         elif candidate != normalized:
             _log(
@@ -1111,12 +1168,12 @@ def convert_game(
     _progress(progress, "Detecting Ren'Py version", None, None)
     launcher = find_launcher_sh(game_dir)
     game_name = launcher.stem
-    python_tag = detect_python_tag(game_dir)
     version = resolve_conversion_version(
         game_dir,
         version_override=version_override,
         profile_match=profile_match,
     )
+    python_tag = detect_python_tag(game_dir, version)
     if profile_match is not None and not version_override:
         emit(f"Compatibility profile pins Ren'Py {version}")
     emit(f"Game: {game_name}")
