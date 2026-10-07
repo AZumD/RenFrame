@@ -72,3 +72,18 @@ def test_add_to_steam_registers_direct_launcher_not_desktop_file(tmp_path: Path)
     assert 'steamos-add-to-steam "$DESKTOP"' not in helper
     assert 'safe=""))\' "$LAUNCH")' in helper
     assert 'safe=""))\' "$DESKTOP")' not in helper
+
+
+def test_steam_helpers_write_quiet_conversion_attribution(tmp_path: Path) -> None:
+    launcher = tmp_path / "Sample Game.sh"
+    launcher.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+
+    write_steam_helpers(tmp_path, "Sample Game", "8.5.3", launcher)
+
+    metadata = (tmp_path / ".renframe" / "conversion.txt").read_text(encoding="utf-8")
+    assert "Converted to Linux ARM64 with RenFrame." in metadata
+    assert "RenFrame by Zum Glitchbrain." in metadata
+    assert "Runtime: Ren'Py 8.5.3" in metadata
+
+    wrapper = (tmp_path / "launch-steam.sh").read_text(encoding="utf-8")
+    assert "# RenFrame by Zum Glitchbrain." in wrapper
