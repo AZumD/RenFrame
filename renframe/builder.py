@@ -112,6 +112,13 @@ def _validate_source_inspection(
     warnings: list[str] = []
 
     if not inspection.is_renpy or inspection.compatibility == Compatibility.NOT_A_RENPY_GAME:
+        if inspection.foreign_engine:
+            detail = next(
+                (item for item in inspection.potential_issues if item != "none"),
+                None,
+            )
+            if detail:
+                raise BuildError(detail)
         raise BuildError(
             f"Source is not a Ren'Py game: {inspection.source_path}"
         )

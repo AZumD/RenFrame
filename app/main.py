@@ -16,7 +16,8 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from renpy_arm.convert import FRAME_INSTRUCTIONS, ConvertError, convert_game
+from renframe.foreign_engine import detect_foreign_engine, format_foreign_engine_error
+from renpy_arm.convert import FRAME_INSTRUCTIONS, ConvertError, convert_game, is_renpy_game
 
 try:
     import customtkinter as ctk
@@ -343,6 +344,18 @@ class ConverterApp:
         self.root.after(0, lambda: self.status.configure(text=msg, text_color=color))
 
     def _set_source(self, path: Path) -> None:
+        if path.is_dir() and not is_renpy_game(path):
+            detection = detect_foreign_engine(path)
+            if detection is not None:
+                message = format_foreign_engine_error(path, detection)
+                self.source = None
+                self.path_label.configure(text=str(path), text_color=C_ERR)
+                self.drop_label.configure(text=f"{detection.engine} build detected")
+                self.drop.configure(border_color=C_ERR)
+                self._set_status("Wrong engine for RenFrame", C_ERR)
+                messagebox.showerror(APP_NAME, message)
+                return
+
         self.source = path
         self.path_label.configure(text=str(path), text_color=C_TEAL)
         self.drop_label.configure(text="Ready to convert")

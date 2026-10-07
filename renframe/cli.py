@@ -147,7 +147,7 @@ def cmd_build(
         message = str(exc)
         print(f"error: {message}", file=sys.stderr)
         lower = message.lower()
-        if "not a ren'py game" in lower or "not a renpy game" in lower:
+        if "not a ren'py" in lower or "not a renpy" in lower:
             return EXIT_INVALID_GAME
         if "incompatible" in lower:
             return EXIT_COMPATIBILITY

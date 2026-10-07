@@ -24,6 +24,14 @@ def format_human_report(inspection: GameInspection) -> str:
         lines.append(f"Detected Ren'Py generation: {inspection.generation}.x")
     if inspection.version_source:
         lines.append(f"Version source: {inspection.version_source}")
+    if inspection.foreign_engine:
+        lines.append(f"Detected other engine: {inspection.foreign_engine}")
+    if inspection.known_edition:
+        lines.append(f"Known edition: {inspection.known_edition}")
+    if inspection.foreign_engine_evidence:
+        lines.append(
+            "Engine evidence: " + ", ".join(inspection.foreign_engine_evidence)
+        )
 
     arch = ", ".join(inspection.detected_architectures) or "unknown"
     lines.append(f"Detected architecture: {arch}")
@@ -58,7 +66,8 @@ def format_human_report(inspection: GameInspection) -> str:
     lines.append("Potential issues:")
     issues = inspection.potential_issues or ["none"]
     for issue in issues:
-        lines.append(f"  {issue}")
+        for line in issue.splitlines() or [""]:
+            lines.append(f"  {line}")
 
     if inspection.warnings:
         lines.append("")

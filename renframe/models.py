@@ -67,6 +67,9 @@ class GameInspection:
     renpy_version: str | None = None
     generation: int | None = None
     version_source: str | None = None
+    foreign_engine: str | None = None
+    foreign_engine_evidence: list[str] = field(default_factory=list)
+    known_edition: str | None = None
     detected_architectures: list[str] = field(default_factory=list)
     has_game_dir: bool = False
     has_renpy_dir: bool = False
@@ -86,6 +89,9 @@ class GameInspection:
             "renpy_version": self.renpy_version,
             "generation": self.generation,
             "version_source": self.version_source,
+            "foreign_engine": self.foreign_engine,
+            "foreign_engine_evidence": list(self.foreign_engine_evidence),
+            "known_edition": self.known_edition,
             "detected_architectures": list(self.detected_architectures),
             "has_game_dir": self.has_game_dir,
             "has_renpy_dir": self.has_renpy_dir,
