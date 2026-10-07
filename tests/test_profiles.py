@@ -407,6 +407,10 @@ def test_detect_python_tag_uses_renpy_major_when_both_runtime_families_exist(
 @pytest.mark.parametrize(
     ("source_version", "runtime_version"),
     [
+        ("7.5.0", "7.5.3"),
+        ("7.5.1", "7.5.3"),
+        ("8.0.0", "8.0.3"),
+        ("8.0.1", "8.0.3"),
         ("7.7.2", "7.7.3"),
         ("8.2.2", "8.2.3"),
     ],
