@@ -365,10 +365,36 @@ def download_sdk(
         raise ConvertError(f"Invalid Ren'Py version: {version}")
 
     major, minor, patch = (int(i) for i in normalized.split("."))
-    candidates = [
-        f"{major}.{minor}.{candidate_patch}"
-        for candidate_patch in range(patch, -1, -1)
-    ]
+
+    bridge_runtime = None
+    if major == 7 and minor == 4:
+        # Linux aarch64 support first landed in Ren'Py 7.5. Ren'Py 7.5 is the
+        # Python 2.7 continuation of the 7.x line, so it is the narrowest
+        # generic compatibility bridge for 7.4 games.
+        bridge_runtime = "7.5.3"
+        candidates = [bridge_runtime]
+        _log(
+            log,
+            f"Ren'Py {normalized} predates Linux ARM64 support; "
+            f"trying compatibility runtime {bridge_runtime}",
+        )
+        _progress(
+            progress,
+            "Downloading runtime",
+            0.0,
+            f"7.4.x → {bridge_runtime} ARM compatibility runtime",
+        )
+    elif major < 7 or (major == 7 and minor < 4):
+        raise ConvertError(
+            f"Ren'Py {normalized} predates Linux ARM64 support and is too old "
+            "for RenFrame's generic runtime bridge. This game needs a "
+            "compatibility profile."
+        )
+    else:
+        candidates = [
+            f"{major}.{minor}.{candidate_patch}"
+            for candidate_patch in range(patch, -1, -1)
+        ]
 
     last_404 = None
     for candidate in candidates:
@@ -377,7 +403,13 @@ def download_sdk(
         dest = cache_dir / name
 
         if dest.is_file() and not force:
-            if candidate != normalized:
+            if bridge_runtime:
+                _log(
+                    log,
+                    f"Using cached Ren'Py {candidate} ARM compatibility runtime "
+                    f"for Ren'Py {normalized}",
+                )
+            elif candidate != normalized:
                 _log(
                     log,
                     f"Exact ARM SDK for Ren'Py {normalized} is unavailable; "
@@ -440,7 +472,15 @@ def download_sdk(
             ) from exc
 
         partial.replace(dest)
-        if candidate != normalized:
+        if bridge_runtime:
+            _log(
+                log,
+                f"WARNING: Ren'Py {normalized} predates Linux ARM64 support. "
+                f"Using Ren'Py {candidate}, the Python 2.7 ARM compatibility "
+                "runtime. Game-specific incompatibilities may still require a "
+                "compatibility profile.",
+            )
+        elif candidate != normalized:
             _log(
                 log,
                 f"WARNING: Ren'Py {normalized} has no published ARM SDK. "
@@ -448,6 +488,12 @@ def download_sdk(
                 "Nightly-only engine changes may still require a newer runtime.",
             )
         return dest, candidate
+
+    if bridge_runtime:
+        raise ConvertError(
+            f"Ren'Py {normalized} predates Linux ARM64 support, and the "
+            f"{bridge_runtime} compatibility runtime could not be downloaded."
+        ) from last_404
 
     raise ConvertError(
         f"No published ARM SDK found for Ren'Py {normalized} or an earlier "
