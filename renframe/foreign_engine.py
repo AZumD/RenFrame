@@ -155,7 +155,7 @@ def detect_foreign_engine(root: Path) -> ForeignEngineDetection | None:
     monogame_evidence: list[str] = []
     for name, path in managed_names.items():
         if (
-            name == "monogame.framework.dll"
+            name.startswith("monogame.framework")
             or name == "fna.dll"
             or name.startswith("microsoft.xna.framework")
         ):
