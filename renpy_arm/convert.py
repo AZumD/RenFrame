@@ -775,9 +775,25 @@ echo "Run ./diagnose-frame.sh --launch to trace an actual launch."
 
 def write_steam_helpers(game_dir: Path, game_name: str, version: str, launcher: Path, log: Optional[LogFn] = None) -> None:
     launcher_base = launcher.name
+
+    # Quiet attribution + conversion metadata. This lives in a hidden-ish
+    # project directory so normal players never see it, while anyone inspecting
+    # a converted build can tell where the ARM64 port came from.
+    metadata_dir = game_dir / ".renframe"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    (metadata_dir / "conversion.txt").write_text(
+        "Converted to Linux ARM64 with RenFrame.\n"
+        "RenFrame by Zum Glitchbrain.\n"
+        f"Runtime: Ren'Py {version}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
     wrap = game_dir / "launch-steam.sh"
     wrap.write_text(
         f"""#!/usr/bin/env bash
+# Converted to Linux ARM64 with RenFrame.
+# RenFrame by Zum Glitchbrain.
 # Steam-friendly wrapper. The stock Ren'Py launcher resolves its own basedir,
 # so only forward the caller's real arguments.
 set -euo pipefail
