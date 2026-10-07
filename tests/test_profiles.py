@@ -12,6 +12,7 @@ from renpy_arm.convert import (
     normalize_version,
     resolve_conversion_version,
     sync_engine_from_sdk,
+    sync_runtime_support_from_sdk,
 )
 from renpy_arm.profiles import (
     KATAWA_PROFILE,
@@ -488,3 +489,45 @@ def test_sync_engine_from_sdk_is_noop_for_exact_runtime(tmp_path: Path) -> None:
     )
 
     assert marker.read_text(encoding="utf-8") == "keep\n"
+
+
+def test_sync_runtime_support_from_sdk_merges_shared_python_files(
+    tmp_path: Path,
+) -> None:
+    import tarfile
+
+    game = tmp_path / "game-root"
+    (game / "lib" / "python2.7").mkdir(parents=True)
+    (game / "lib" / "python2.7" / "old_runtime.py").write_text(
+        "old\n",
+        encoding="utf-8",
+    )
+
+    sdk_root = tmp_path / "sdk-root" / "renpy-7.5.3-sdk"
+    arm = sdk_root / "lib" / "py2-linux-aarch64"
+    arm.mkdir(parents=True)
+    (arm / "librenpython.so").write_bytes(b"arm-runtime")
+    shared = sdk_root / "lib" / "python2.7"
+    shared.mkdir(parents=True)
+    (shared / "typing.py").write_text(
+        "# python2 typing backport\n",
+        encoding="utf-8",
+    )
+    other_platform = sdk_root / "lib" / "py3-linux-aarch64"
+    other_platform.mkdir(parents=True)
+    (other_platform / "should-not-copy").write_text("no\n", encoding="utf-8")
+
+    sdk = tmp_path / "renpy-7.5.3-sdkarm.tar.bz2"
+    with tarfile.open(sdk, "w:bz2") as tf:
+        tf.add(sdk_root, arcname="renpy-7.5.3-sdk")
+
+    sync_runtime_support_from_sdk(
+        sdk,
+        game,
+        python_tag="py2",
+        runtime_version="7.5.3",
+    )
+
+    assert (game / "lib" / "python2.7" / "typing.py").is_file()
+    assert (game / "lib" / "python2.7" / "old_runtime.py").is_file()
+    assert not (game / "lib" / "py3-linux-aarch64").exists()
