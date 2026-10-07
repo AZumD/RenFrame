@@ -11,6 +11,7 @@ from renpy_arm.convert import (
     is_renpy_game,
     normalize_version,
     resolve_conversion_version,
+    sync_engine_from_sdk,
 )
 from renpy_arm.profiles import (
     KATAWA_PROFILE,
@@ -438,3 +439,52 @@ def test_download_sdk_redirects_known_broken_release_builds(
         f"https://www.renpy.org/dl/{runtime_version}/"
         f"renpy-{runtime_version}-sdkarm.tar.bz2"
     ]
+
+
+def test_sync_engine_from_sdk_replaces_mismatched_engine_tree(tmp_path: Path) -> None:
+    import tarfile
+
+    game = tmp_path / "game-root"
+    (game / "renpy").mkdir(parents=True)
+    (game / "renpy" / "__init__.py").write_text(
+        'version = "7.4.6"\n',
+        encoding="utf-8",
+    )
+    (game / "renpy" / "old-only.py").write_text("old\n", encoding="utf-8")
+
+    sdk_root = tmp_path / "sdk-root" / "renpy-7.5.3-sdk"
+    (sdk_root / "renpy" / "common").mkdir(parents=True)
+    (sdk_root / "renpy" / "__init__.py").write_text(
+        'version = "7.5.3"\n',
+        encoding="utf-8",
+    )
+    (sdk_root / "renpy" / "common" / "00start.rpy").write_text(
+        "# matching common scripts\n",
+        encoding="utf-8",
+    )
+
+    sdk = tmp_path / "renpy-7.5.3-sdkarm.tar.bz2"
+    with tarfile.open(sdk, "w:bz2") as tf:
+        tf.add(sdk_root, arcname="renpy-7.5.3-sdk")
+
+    sync_engine_from_sdk(sdk, game, "7.4.6", "7.5.3")
+
+    assert '7.5.3' in (game / "renpy" / "__init__.py").read_text(encoding="utf-8")
+    assert (game / "renpy" / "common" / "00start.rpy").is_file()
+    assert not (game / "renpy" / "old-only.py").exists()
+
+
+def test_sync_engine_from_sdk_is_noop_for_exact_runtime(tmp_path: Path) -> None:
+    game = tmp_path / "game-root"
+    (game / "renpy").mkdir(parents=True)
+    marker = game / "renpy" / "keep-me.py"
+    marker.write_text("keep\n", encoding="utf-8")
+
+    sync_engine_from_sdk(
+        tmp_path / "does-not-need-to-exist.tar.bz2",
+        game,
+        "8.3.7",
+        "8.3.7",
+    )
+
+    assert marker.read_text(encoding="utf-8") == "keep\n"
