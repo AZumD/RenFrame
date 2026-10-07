@@ -5,6 +5,7 @@ import pytest
 from renpy_arm.convert import (
     ConvertError,
     convert_game,
+    detect_python_tag,
     detect_version,
     download_sdk,
     is_renpy_game,
@@ -381,3 +382,55 @@ def test_download_sdk_rejects_pre_7_4_without_profile(
         download_sdk("6.18.3", tmp_path, force=False)
 
     assert attempts == []
+
+
+def test_detect_python_tag_uses_renpy_major_for_legacy_lib_layout(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "Legacy7"
+    (root / "lib" / "windows-x86_64").mkdir(parents=True)
+
+    assert detect_python_tag(root, "7.4.6") == "py2"
+
+
+def test_detect_python_tag_uses_renpy_major_when_both_runtime_families_exist(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "Mixed"
+    (root / "lib" / "py2-windows-x86_64").mkdir(parents=True)
+    (root / "lib" / "py3-windows-x86_64").mkdir(parents=True)
+
+    assert detect_python_tag(root, "7.8.7") == "py2"
+    assert detect_python_tag(root, "8.3.7") == "py3"
+
+
+@pytest.mark.parametrize(
+    ("source_version", "runtime_version"),
+    [
+        ("7.7.2", "7.7.3"),
+        ("8.2.2", "8.2.3"),
+    ],
+)
+def test_download_sdk_redirects_known_broken_release_builds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_version: str,
+    runtime_version: str,
+) -> None:
+    attempts = []
+
+    def fake_urlretrieve(url, destination, reporthook=None):
+        attempts.append(url)
+        Path(destination).write_bytes(b"sdk-fixture")
+        return destination, None
+
+    monkeypatch.setattr("renpy_arm.convert.urllib.request.urlretrieve", fake_urlretrieve)
+
+    sdk, selected = download_sdk(source_version, tmp_path, force=False)
+
+    assert selected == runtime_version
+    assert sdk.name == f"renpy-{runtime_version}-sdkarm.tar.bz2"
+    assert attempts == [
+        f"https://www.renpy.org/dl/{runtime_version}/"
+        f"renpy-{runtime_version}-sdkarm.tar.bz2"
+    ]
