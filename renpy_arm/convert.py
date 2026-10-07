@@ -656,6 +656,79 @@ def extract_aarch64(
     return dest
 
 
+def sync_engine_from_sdk(
+    sdk_file: Path,
+    game_dir: Path,
+    source_version: str,
+    runtime_version: str,
+    log: Optional[LogFn] = None,
+) -> None:
+    """Keep Ren'Py Python code and compiled ARM runtime on the same release.
+
+    librenpython.so is a Cython extension tightly coupled to the Python modules
+    in the Ren'Py engine tree. Mixing an ARM runtime from one Ren'Py release
+    with renpy/ from another can boot far enough to produce misleading runtime
+    errors (for example missing Cache methods) before game start.
+
+    When RenFrame intentionally selects a different compatible runtime release,
+    replace only the copied conversion's engine tree with the matching SDK
+    engine. Game content under game/ is left untouched.
+    """
+    if normalize_version(source_version) == normalize_version(runtime_version):
+        return
+
+    _log(
+        log,
+        f"Synchronizing Ren'Py engine {source_version} → {runtime_version} "
+        "to match the selected ARM runtime",
+    )
+
+    with tempfile.TemporaryDirectory(prefix="renpy-engine-") as tmp:
+        tmp_path = Path(tmp)
+        with tarfile.open(sdk_file, "r:bz2") as tf:
+            members = tf.getmembers()
+
+            # Find the SDK's top-level renpy package from renpy/__init__.py,
+            # then extract that whole package. This avoids depending on the
+            # archive's versioned root directory name.
+            init_members = [
+                m
+                for m in members
+                if m.isfile()
+                and m.name.replace("\\", "/").endswith("/renpy/__init__.py")
+            ]
+            if not init_members:
+                raise ConvertError(
+                    f"SDK for Ren'Py {runtime_version} does not contain a "
+                    "recognizable renpy/ engine tree."
+                )
+
+            init_name = init_members[0].name.replace("\\", "/")
+            renpy_prefix = init_name[: -len("/__init__.py")]
+            engine_members = [
+                m
+                for m in members
+                if (
+                    m.name.replace("\\", "/") == renpy_prefix
+                    or m.name.replace("\\", "/").startswith(renpy_prefix + "/")
+                )
+            ]
+            tf.extractall(tmp_path, members=engine_members)
+
+        extracted = tmp_path / Path(renpy_prefix)
+        if not extracted.is_dir():
+            raise ConvertError(
+                f"Failed to extract Ren'Py {runtime_version} engine tree."
+            )
+
+        dest = game_dir / "renpy"
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.move(str(extracted), str(dest))
+
+    _log(log, f"Installed matching Ren'Py {runtime_version} engine tree")
+
+
 def normalize_shell_script(path: Path, log: Optional[LogFn] = None) -> bool:
     """Normalize a shell script to Unix LF endings.
 
@@ -1265,6 +1338,20 @@ def convert_game(
         verify_sdk_checksum(sdk, runtime_version, log=emit)
         _progress(progress, "Extracting ARM64 runtime", None, sdk.name)
         extract_aarch64(sdk, game_dir, python_tag, game_name, log=emit)
+        if runtime_version != version:
+            _progress(
+                progress,
+                "Synchronizing Ren'Py engine",
+                None,
+                f"{version} → {runtime_version}",
+            )
+            sync_engine_from_sdk(
+                sdk,
+                game_dir,
+                source_version=version,
+                runtime_version=runtime_version,
+                log=emit,
+            )
     else:
         emit(f"Already have {dest.name} (use force to re-download)")
         named = dest / game_name
