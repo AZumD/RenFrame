@@ -729,6 +729,91 @@ def sync_engine_from_sdk(
     _log(log, f"Installed matching Ren'Py {runtime_version} engine tree")
 
 
+def sync_runtime_support_from_sdk(
+    sdk_file: Path,
+    game_dir: Path,
+    python_tag: str,
+    runtime_version: str,
+    log: Optional[LogFn] = None,
+) -> None:
+    """Overlay shared SDK runtime support needed by the selected ARM build.
+
+    Ren'Py SDKs can keep architecture-neutral Python support files next to,
+    rather than inside, lib/<python>-linux-aarch64. Copying only the ARM
+    platform directory can therefore leave a bridged game with an older
+    standard library. Ren'Py 7.5, for example, imports the Python 2 typing
+    backport from this shared runtime support.
+
+    Only architecture-neutral children of the SDK's lib/ directory are merged.
+    Other platform runtimes are deliberately ignored.
+    """
+    selected_platform = f"{python_tag}-linux-aarch64"
+
+    with tempfile.TemporaryDirectory(prefix="renpy-runtime-support-") as tmp:
+        tmp_path = Path(tmp)
+        with tarfile.open(sdk_file, "r:bz2") as tf:
+            members = tf.getmembers()
+            marker_suffix = f"/lib/{selected_platform}/librenpython.so"
+            markers = [
+                m.name.replace("\\", "/")
+                for m in members
+                if m.isfile()
+                and m.name.replace("\\", "/").endswith(marker_suffix)
+            ]
+            if not markers:
+                raise ConvertError(
+                    f"SDK for Ren'Py {runtime_version} does not contain "
+                    f"lib/{selected_platform}/librenpython.so."
+                )
+
+            marker_name = markers[0]
+            lib_prefix = marker_name[: -len(f"/{selected_platform}/librenpython.so")]
+
+            def shared_member(member) -> bool:
+                name = member.name.replace("\\", "/")
+                if not name.startswith(lib_prefix + "/"):
+                    return False
+                rel = name[len(lib_prefix) + 1 :]
+                if not rel:
+                    return False
+                first = rel.split("/", 1)[0]
+                if first == selected_platform:
+                    return False
+                if first.startswith(("py2-", "py3-")):
+                    return False
+                if first.startswith(("linux-", "windows-", "mac-", "darwin-")):
+                    return False
+                return True
+
+            shared = [m for m in members if shared_member(m)]
+            if not shared:
+                _log(
+                    log,
+                    f"No shared runtime support found in Ren'Py {runtime_version} SDK",
+                )
+                return
+            tf.extractall(tmp_path, members=shared)
+
+        src_lib = tmp_path / Path(lib_prefix)
+        dest_lib = game_dir / "lib"
+        dest_lib.mkdir(parents=True, exist_ok=True)
+
+        copied = 0
+        for child in src_lib.iterdir():
+            dest = dest_lib / child.name
+            if child.is_dir():
+                shutil.copytree(child, dest, dirs_exist_ok=True)
+            else:
+                shutil.copy2(child, dest)
+            copied += 1
+
+    _log(
+        log,
+        f"Merged Ren'Py {runtime_version} shared runtime support "
+        f"({copied} lib entries)",
+    )
+
+
 def normalize_shell_script(path: Path, log: Optional[LogFn] = None) -> bool:
     """Normalize a shell script to Unix LF endings.
 
@@ -1349,6 +1434,13 @@ def convert_game(
                 sdk,
                 game_dir,
                 source_version=version,
+                runtime_version=runtime_version,
+                log=emit,
+            )
+            sync_runtime_support_from_sdk(
+                sdk,
+                game_dir,
+                python_tag=python_tag,
                 runtime_version=runtime_version,
                 log=emit,
             )
