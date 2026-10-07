@@ -40,6 +40,16 @@ VER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:\.\d+)?")
 # immediate fix releases are safer ARM runtime targets and preserve the same
 # Ren'Py/Python compatibility line.
 ARM_RUNTIME_REDIRECTS = {
+    # 7.5.0/7.5.1 and 8.0.0/8.0.1 predate the aarch64 launch fix that
+    # landed in the paired 7.5.2/8.0.2 release. Use the final fix release of
+    # each line rather than shipping a runtime known to be shaky on ARM64.
+    "7.5.0": "7.5.3",
+    "7.5.1": "7.5.3",
+    "8.0.0": "8.0.3",
+    "8.0.1": "8.0.3",
+
+    # These paired releases had a general build problem fixed immediately by
+    # 7.7.3/8.2.3.
     "7.7.2": "7.7.3",
     "8.2.2": "8.2.3",
 }
