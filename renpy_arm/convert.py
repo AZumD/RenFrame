@@ -676,15 +676,60 @@ def normalize_shell_script(path: Path, log: Optional[LogFn] = None) -> bool:
     return True
 
 
-def patch_launcher_sh(launcher: Path, log: Optional[LogFn] = None) -> None:
+def patch_launcher_sh(
+    launcher: Path,
+    python_tag: Optional[str] = None,
+    log: Optional[LogFn] = None,
+) -> None:
     normalize_shell_script(launcher, log=log)
     text = launcher.read_text(encoding="utf-8", errors="replace")
-    if "linux-aarch64" in text and re.search(r"aarch64|arm64", text):
-        _log(log, "Launcher already maps aarch64/arm64")
+
+    # Older Ren'Py 7 launchers look up lib/$RENPY_PLATFORM directly, while
+    # newer launchers add the py2-/py3- prefix separately. If we inject plain
+    # linux-aarch64 into an old launcher it searches lib/linux-aarch64 even
+    # though the ARM SDK runtime lives in lib/py2-linux-aarch64.
+    bare_platform_lookup = bool(
+        re.search(
+            r'''LIB=["']?\$ROOT/lib/\$\{?RENPY_PLATFORM\}?["']?''',
+            text,
+        )
+    )
+    arm_platform = (
+        f"{python_tag}-linux-aarch64"
+        if bare_platform_lookup and python_tag
+        else "linux-aarch64"
+    )
+
+    arm_case_re = re.compile(
+        r'(?ms)(^[ \t]*\*-aarch64\|\*-arm64\)[ \t]*\n'
+        r'.*?^[ \t]*;;[ \t]*$)'
+    )
+    existing = arm_case_re.search(text)
+    if existing:
+        block = existing.group(1)
+        desired = re.sub(
+            r'RENPY_PLATFORM=["\'][^"\']+["\']',
+            f'RENPY_PLATFORM="{arm_platform}"',
+            block,
+            count=1,
+        )
+        if desired != block:
+            bak = launcher.with_suffix(launcher.suffix + ".bak-before-arm")
+            if not bak.exists():
+                bak.write_text(text, encoding="utf-8")
+            launcher.write_text(
+                text[: existing.start(1)] + desired + text[existing.end(1) :],
+                encoding="utf-8",
+                newline="\n",
+            )
+            _log(log, f"Updated ARM platform mapping in {launcher.name} → {arm_platform}")
+        else:
+            _log(log, "Launcher already maps aarch64/arm64 correctly")
         return
+
     snippet = (
         '        *-aarch64|*-arm64)\n'
-        '            RENPY_PLATFORM="linux-aarch64"\n'
+        f'            RENPY_PLATFORM="{arm_platform}"\n'
         "            ;;\n"
     )
     new, n = re.subn(
@@ -701,7 +746,7 @@ def patch_launcher_sh(launcher: Path, log: Optional[LogFn] = None) -> None:
     if not bak.exists():
         bak.write_text(text, encoding="utf-8")
     launcher.write_text(new, encoding="utf-8", newline="\n")
-    _log(log, f"Patched {launcher.name}")
+    _log(log, f"Patched {launcher.name} → {arm_platform}")
 
 
 def write_frame_diagnostics(game_dir: Path, game_name: str, log: Optional[LogFn] = None) -> Path:
@@ -1228,7 +1273,7 @@ def convert_game(
             shutil.copy2(renpy_bin, named)
 
     _progress(progress, "Patching launchers", None, launcher.name)
-    patch_launcher_sh(launcher, log=emit)
+    patch_launcher_sh(launcher, python_tag=python_tag, log=emit)
     write_steam_helpers(game_dir, game_name, runtime_version, launcher, log=emit)
 
     if output_zip is None:
