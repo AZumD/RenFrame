@@ -87,3 +87,68 @@ def test_steam_helpers_write_quiet_conversion_attribution(tmp_path: Path) -> Non
 
     wrapper = (tmp_path / "launch-steam.sh").read_text(encoding="utf-8")
     assert "# RenFrame by Zum Glitchbrain." in wrapper
+
+
+def test_legacy_launcher_maps_arm_to_python_prefixed_runtime(tmp_path: Path) -> None:
+    launcher = tmp_path / "Legacy.sh"
+    launcher.write_text(
+        '#!/bin/sh\n'
+        'if [ -z "$RENPY_PLATFORM" ] ; then\n'
+        '    RENPY_PLATFORM="$(uname -s)-$(uname -m)"\n'
+        '    case "$RENPY_PLATFORM" in\n'
+        '        Linux-*)\n'
+        '            RENPY_PLATFORM="linux-$(uname -m)"\n'
+        '            ;;\n'
+        '    esac\n'
+        'fi\n'
+        'LIB="$ROOT/lib/$RENPY_PLATFORM"\n',
+        encoding="utf-8",
+    )
+
+    patch_launcher_sh(launcher, python_tag="py2")
+
+    text = launcher.read_text(encoding="utf-8")
+    assert 'RENPY_PLATFORM="py2-linux-aarch64"' in text
+
+
+def test_legacy_launcher_repairs_existing_plain_arm_mapping(tmp_path: Path) -> None:
+    launcher = tmp_path / "Legacy.sh"
+    launcher.write_text(
+        '#!/bin/sh\n'
+        'case "$RENPY_PLATFORM" in\n'
+        '    *-aarch64|*-arm64)\n'
+        '        RENPY_PLATFORM="linux-aarch64"\n'
+        '        ;;\n'
+        '    Linux-*)\n'
+        '        RENPY_PLATFORM="linux-$(uname -m)"\n'
+        '        ;;\n'
+        'esac\n'
+        'LIB="$ROOT/lib/$RENPY_PLATFORM"\n',
+        encoding="utf-8",
+    )
+
+    patch_launcher_sh(launcher, python_tag="py2")
+
+    text = launcher.read_text(encoding="utf-8")
+    assert 'RENPY_PLATFORM="py2-linux-aarch64"' in text
+    assert 'RENPY_PLATFORM="linux-aarch64"' not in text
+
+
+def test_modern_launcher_keeps_unprefixed_platform_mapping(tmp_path: Path) -> None:
+    launcher = tmp_path / "Modern.sh"
+    launcher.write_text(
+        '#!/bin/sh\n'
+        'case "$RENPY_PLATFORM" in\n'
+        '    Linux-*)\n'
+        '        RENPY_PLATFORM="linux-$(uname -m)"\n'
+        '        ;;\n'
+        'esac\n'
+        'LIB="$ROOT/lib/$PYTHON-$RENPY_PLATFORM"\n',
+        encoding="utf-8",
+    )
+
+    patch_launcher_sh(launcher, python_tag="py3")
+
+    text = launcher.read_text(encoding="utf-8")
+    assert 'RENPY_PLATFORM="linux-aarch64"' in text
+    assert 'RENPY_PLATFORM="py3-linux-aarch64"' not in text
