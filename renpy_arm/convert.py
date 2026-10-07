@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
+from renframe.foreign_engine import detect_foreign_engine, format_foreign_engine_error
+
 LogFn = Callable[[str], None]
 
 HELPER_SH = {
@@ -177,10 +179,20 @@ def resolve_input(path: Path, work_root: Path, log: Optional[LogFn] = None) -> P
     if path.is_dir():
         if is_renpy_game(path):
             return path
+
+        detection = detect_foreign_engine(path)
+        if detection is not None:
+            raise ConvertError(format_foreign_engine_error(path, detection))
+
         # nested single folder
         kids = [p for p in path.iterdir() if p.is_dir() and not p.name.startswith(".")]
-        if len(kids) == 1 and is_renpy_game(kids[0]):
-            return kids[0]
+        if len(kids) == 1:
+            if is_renpy_game(kids[0]):
+                return kids[0]
+            detection = detect_foreign_engine(kids[0])
+            if detection is not None:
+                raise ConvertError(format_foreign_engine_error(kids[0], detection))
+
         raise ConvertError(f"Not a Ren'Py game folder (need renpy/ + lib/): {path}")
 
     if not path.is_file():
@@ -206,11 +218,19 @@ def resolve_input(path: Path, work_root: Path, log: Optional[LogFn] = None) -> P
 
     if is_renpy_game(extract_dir):
         return extract_dir
+
     # common: archive contains one top-level folder
     kids = [p for p in extract_dir.iterdir() if p.is_dir()]
     for kid in kids:
         if is_renpy_game(kid):
             return kid
+
+    # Only diagnose another engine after exhausting plausible Ren'Py roots.
+    for candidate in (extract_dir, *kids):
+        detection = detect_foreign_engine(candidate)
+        if detection is not None:
+            raise ConvertError(format_foreign_engine_error(candidate, detection))
+
     raise ConvertError("Archive did not contain a Ren'Py game (renpy/ + lib/).")
 
 
