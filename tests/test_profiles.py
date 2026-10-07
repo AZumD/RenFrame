@@ -340,3 +340,44 @@ def test_download_sdk_does_not_cross_minor_boundary(
         download_sdk("8.4.0", tmp_path, force=False)
 
     assert all("/8.4." in url for url in attempts)
+
+
+def test_download_sdk_bridges_renpy_7_4_to_7_5_arm_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = []
+
+    def fake_urlretrieve(url, destination, reporthook=None):
+        attempts.append(url)
+        Path(destination).write_bytes(b"sdk-fixture")
+        return destination, None
+
+    monkeypatch.setattr("renpy_arm.convert.urllib.request.urlretrieve", fake_urlretrieve)
+
+    sdk, runtime_version = download_sdk("7.4.6", tmp_path, force=False)
+
+    assert runtime_version == "7.5.3"
+    assert sdk.name == "renpy-7.5.3-sdkarm.tar.bz2"
+    assert attempts == [
+        "https://www.renpy.org/dl/7.5.3/renpy-7.5.3-sdkarm.tar.bz2"
+    ]
+
+
+def test_download_sdk_rejects_pre_7_4_without_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = []
+
+    def fake_urlretrieve(url, destination, reporthook=None):
+        attempts.append(url)
+        Path(destination).write_bytes(b"sdk-fixture")
+        return destination, None
+
+    monkeypatch.setattr("renpy_arm.convert.urllib.request.urlretrieve", fake_urlretrieve)
+
+    with pytest.raises(ConvertError, match="needs a compatibility profile"):
+        download_sdk("6.18.3", tmp_path, force=False)
+
+    assert attempts == []
