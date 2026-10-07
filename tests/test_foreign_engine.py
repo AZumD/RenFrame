@@ -76,6 +76,17 @@ def test_inspect_surfaces_foreign_engine(tmp_path: Path) -> None:
     assert any("Detected Unity" in issue for issue in result.potential_issues)
 
 
+def test_resolve_input_prefers_real_renpy_layout_over_foreign_markers(tmp_path: Path) -> None:
+    game = tmp_path / "OddRenpy"
+    (game / "renpy").mkdir(parents=True)
+    (game / "lib").mkdir()
+    (game / "UnityPlayer.dll").write_bytes(b"bundled-but-irrelevant")
+    work = tmp_path / "work"
+    work.mkdir()
+
+    assert resolve_input(game, work) == game.resolve()
+
+
 def test_resolve_input_rejects_known_wrong_edition_early(tmp_path: Path) -> None:
     game = _make_unity(tmp_path / "DDLC Plus", data_name="DDLC Plus_Data")
     work = tmp_path / "work"
