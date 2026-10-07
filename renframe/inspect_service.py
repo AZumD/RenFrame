@@ -12,6 +12,7 @@ from renframe.detector import (
     looks_like_renpy_game,
     select_best_version,
 )
+from renframe.foreign_engine import detect_foreign_engine, format_foreign_engine_error
 from renframe.models import GameInspection, Ownership
 from renframe.scanner import classify_compatibility, scan_native_dependencies
 from renframe.utils import normalize_path
@@ -41,6 +42,7 @@ def inspect_game(path: Path | str) -> GameInspection:
         )
 
     is_renpy = looks_like_renpy_game(source)
+    foreign = detect_foreign_engine(source) if not is_renpy else None
     layout = detect_layout_flags(source)
     arches = detect_runtime_architectures(source)
     hints = collect_version_hints(source) if is_renpy else []
@@ -81,6 +83,8 @@ def inspect_game(path: Path | str) -> GameInspection:
         native_dependencies=natives,
         warnings=[],  # keep soft warnings separate from hard issues
     )
+    if foreign is not None:
+        issues = [format_foreign_engine_error(source, foreign)]
 
     # Attach soft warnings into NEEDS_TESTING only when otherwise likely ok.
     potential_issues = [i for i in issues if i != "none"]
@@ -100,6 +104,9 @@ def inspect_game(path: Path | str) -> GameInspection:
         renpy_version=best.version if best else None,
         generation=best.generation if best else None,
         version_source=best.source if best else None,
+        foreign_engine=foreign.engine if foreign else None,
+        foreign_engine_evidence=list(foreign.evidence) if foreign else [],
+        known_edition=foreign.known_edition if foreign else None,
         detected_architectures=arches,
         has_game_dir=layout["has_game_dir"],
         has_renpy_dir=layout["has_renpy_dir"],
