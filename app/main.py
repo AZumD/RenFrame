@@ -17,7 +17,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from renframe.foreign_engine import detect_foreign_engine, format_foreign_engine_error
-from renpy_arm.convert import FRAME_INSTRUCTIONS, ConvertError, convert_game
+from renpy_arm.convert import FRAME_INSTRUCTIONS, ConvertError, convert_game, is_renpy_game
 
 try:
     import customtkinter as ctk
@@ -344,7 +344,7 @@ class ConverterApp:
         self.root.after(0, lambda: self.status.configure(text=msg, text_color=color))
 
     def _set_source(self, path: Path) -> None:
-        if path.is_dir():
+        if path.is_dir() and not is_renpy_game(path):
             detection = detect_foreign_engine(path)
             if detection is not None:
                 message = format_foreign_engine_error(path, detection)
