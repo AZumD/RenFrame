@@ -92,7 +92,7 @@ find_launcher_sh() {
     [[ -e "$f" ]] || continue
     base=$(basename "$f")
     case "$base" in
-      make-linux-arm.sh|launch-steam.sh|add-to-steam.sh) continue ;;
+      make-linux-arm.sh|launch-steam.sh|add-to-steam.sh|diagnose-frame.sh) continue ;;
     esac
     # Ren'Py launchers usually contain RENPY_PLATFORM
     if grep -q 'RENPY_PLATFORM' "$f" 2>/dev/null; then
@@ -485,11 +485,19 @@ write_steam_scripts() {
 
   cat > "$wrap" <<EOF
 #!/usr/bin/env bash
-# Steam-friendly wrapper: resolves game dir from this script, passes basedir explicitly.
+# Steam-friendly wrapper. The stock Ren'Py launcher resolves its own basedir.
 set -euo pipefail
 GAME_DIR=\$(cd "\$(dirname "\$0")" && pwd)
 cd "\$GAME_DIR"
-exec "\$GAME_DIR/${launcher_base}" "\$GAME_DIR" "\$@"
+
+for runtime in \
+  "\$GAME_DIR"/lib/*-linux-aarch64/renpy \
+  "\$GAME_DIR"/lib/*-linux-aarch64/python \
+  "\$GAME_DIR"/lib/*-linux-aarch64/${GAME_NAME}; do
+  [[ -f "\$runtime" ]] && chmod +x "\$runtime" 2>/dev/null || true
+done
+
+exec "\$GAME_DIR/${launcher_base}" "\$@"
 EOF
   chmod +x "$wrap"
   log "Wrote $wrap"

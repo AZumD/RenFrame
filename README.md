@@ -6,6 +6,23 @@ Convert **Ren'Py PC builds** into native **Linux ARM64** packages for the **Stea
 Drop game → Convert → *-linux-aarch64.zip → Frame unpack → ./add-to-steam.sh
 ```
 
+
+## 0.1.1 (in development)
+
+- **Legacy compatibility profiles** for known old Ren'Py games that cannot use the normal runtime-transplant path.
+- Experimental first profile: **Katawa Shoujo / Katawa Shoujo HD (Ren'Py 6.10.2e)**.
+  - fingerprints the game instead of relying on the folder name;
+  - normalizes it against a pinned known-good Ren'Py 8 port;
+  - keeps/reapplies the user's local game assets;
+  - reapplies the HD project's source overrides for the HD edition;
+  - then hands the result back to RenFrame's normal Linux ARM64 converter.
+- Unknown legacy Ren'Py builds now report their detected engine version instead of saying they are not Ren'Py games.
+- SDK and compatibility downloads use a persistent per-user cache.
+- Archive extraction now rejects path-traversal entries.
+
+The Katawa profile is intentionally experimental until it has been exercised against
+the original release and the HD build end-to-end on a Steam Frame.
+
 ## 0.1.0
 
 - **GUI app** (Windows native + Linux aarch64 build script)
